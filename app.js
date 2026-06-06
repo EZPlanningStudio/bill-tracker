@@ -993,7 +993,7 @@ function bindEvents() {
 
         if (isShortcut && key === "s") {
             e.preventDefault();
-            saveData();
+            exportJson();
             return;
         }
 
@@ -1562,6 +1562,8 @@ function submitActivationCode() {
     if (code === "ui4GMBVpIDnv") {
         localStorage.setItem("billTrackerActivated", "true");
         closeActivationModal();
+        const menuActivation = document.getElementById("menuActivation");
+        if (menuActivation) menuActivation.style.display = "none";
     } else {
         error.style.display = "block";
         input.value = "";
@@ -1882,7 +1884,7 @@ function editBill(id) {
         }
     });
     els.billPaidDate.addEventListener("change", () => {
-        document.getElementById("updateFromHere").style.display = els.billPaidDate.value ? "none" : "";
+        document.getElementById("updateFromHere").style.display = (els.billPaidDate.value || !isRecurring) ? "none" : "";
     });
     els.billPaidAmount.style.color = bill.actualAmount != null ? "var(--text)" : "";
 
@@ -4700,6 +4702,11 @@ function importJson(event) {
         try {
             const imported = JSON.parse(reader.result);
 
+            if (!reader.result || reader.result.trim() === "") {
+                alert("This backup file is empty. The export may not have completed. Please export again.");
+                return;
+            }
+
             if (!imported || typeof imported !== "object") {
                 alert("Invalid backup file.");
                 return;
@@ -4867,63 +4874,156 @@ function saveBillNames(shouldSave = true) {
 }
 
 function createBillNameInput(value = "") {
-    const input = document.createElement("input");
+    const row = document.createElement("div");
+    row.className = "bill-name-row";
+    row.setAttribute("draggable", "false");
 
+    const input = document.createElement("input");
     input.type = "text";
     input.value = value;
     input.className = "bill-name-input";
 
     input.addEventListener("paste", (e) => {
         const pastedText = (e.clipboardData || window.clipboardData).getData("text");
-
         if (!pastedText.includes("\n")) return;
-
         e.preventDefault();
-
-        const values = pastedText
-            .split(/[\r\n\t]+/)
-            .map(v => v.trim())
-            .filter(Boolean);
-
+        const values = pastedText.split(/[\r\n\t]+/).map(v => v.trim()).filter(Boolean);
         if (!values.length) return;
-
-        const list = input.closest(".bill-names-list");
-
+        const list = row.closest(".bill-names-list");
         input.value = values[0];
-
         values.slice(1).forEach(value => {
-            const newInput = createBillNameInput(value);
-            list.appendChild(newInput);
+            const newRow = createBillNameInput(value);
+            list.appendChild(newRow);
         });
-
         saveBillNames(false);
     });
 
     input.addEventListener("blur", () => {
         if (!input.value.trim()) {
-            input.remove();
-            saveBillNames(false);
+            row.remove();
         }
+        row.setAttribute("draggable", "false");
+        saveBillNames(false);
     });
 
     input.addEventListener("keydown", (e) => {
         if (e.key !== "Enter") return;
-
         e.preventDefault();
-
         if (!input.value.trim()) {
-            input.remove();
+            row.remove();
             return;
         }
-
-        const list = input.closest(".bill-names-list");
-        const newInput = createBillNameInput("");
-
-        list.insertBefore(newInput, input.nextSibling);
-        newInput.focus();
+        const list = row.closest(".bill-names-list");
+        const newRow = createBillNameInput("");
+        list.insertBefore(newRow, row.nextSibling);
+        newRow.querySelector(".bill-name-input").focus();
     });
 
-    return input;
+    const handle = document.createElement("span");
+    handle.className = "bill-name-handle";
+    handle.innerHTML = `<svg width="10" height="14" viewBox="0 0 10 14" fill="none"><circle cx="3" cy="2.5" r="1.2" fill="#aaa"/><circle cx="7" cy="2.5" r="1.2" fill="#aaa"/><circle cx="3" cy="7" r="1.2" fill="#aaa"/><circle cx="7" cy="7" r="1.2" fill="#aaa"/><circle cx="3" cy="11.5" r="1.2" fill="#aaa"/><circle cx="7" cy="11.5" r="1.2" fill="#aaa"/></svg>`;
+
+    handle.addEventListener("mousedown", () => {
+        row.setAttribute("draggable", "true");
+    });
+
+    input.addEventListener("mousedown", () => {
+        row.setAttribute("draggable", "false");
+    });
+
+    row.addEventListener("dragstart", (e) => {
+        window._billNameDragSrc = row;
+        row.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+    });
+
+    row.addEventListener("dragend", () => {
+        window._billNameDragSrc = null;
+        row.classList.remove("dragging");
+        row.closest(".bill-names-list")
+            ?.querySelectorAll(".bill-name-row")
+            .forEach(r => r.classList.remove("drag-over"));
+        saveBillNames(true);
+    });
+
+    row.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (window._billNameDragSrc && window._billNameDragSrc !== row) {
+            row.classList.add("drag-over");
+        }
+    });
+
+    row.addEventListener("dragleave", () => {
+        row.classList.remove("drag-over");
+    });
+
+    row.addEventListener("drop", (e) => {
+        e.preventDefault();
+        row.classList.remove("drag-over");
+        if (!window._billNameDragSrc || window._billNameDragSrc === row) return;
+        const list = row.closest(".bill-names-list");
+        const srcList = window._billNameDragSrc.closest(".bill-names-list");
+        if (list !== srcList) return;
+        const rows = [...list.querySelectorAll(".bill-name-row")];
+        const srcIdx = rows.indexOf(window._billNameDragSrc);
+        const tgtIdx = rows.indexOf(row);
+        if (srcIdx < tgtIdx) {
+            list.insertBefore(window._billNameDragSrc, row.nextSibling);
+        } else {
+            list.insertBefore(window._billNameDragSrc, row);
+        }
+    });
+
+    handle.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        window._billNameDragSrc = row;
+        row.classList.add("dragging");
+    }, { passive: false });
+
+    handle.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const target = el?.closest(".bill-name-row");
+        row.closest(".bill-names-list")
+            ?.querySelectorAll(".bill-name-row")
+            .forEach(r => r.classList.remove("drag-over"));
+        if (target && target !== row) {
+            target.classList.add("drag-over");
+        }
+    }, { passive: false });
+
+    handle.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        row.classList.remove("dragging");
+        const touch = e.changedTouches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const target = el?.closest(".bill-name-row");
+        row.closest(".bill-names-list")
+            ?.querySelectorAll(".bill-name-row")
+            .forEach(r => r.classList.remove("drag-over"));
+        if (target && target !== row) {
+            const list = row.closest(".bill-names-list");
+            const srcList = target.closest(".bill-names-list");
+            if (list === srcList) {
+                const rows = [...list.querySelectorAll(".bill-name-row")];
+                const srcIdx = rows.indexOf(row);
+                const tgtIdx = rows.indexOf(target);
+                if (srcIdx < tgtIdx) {
+                    list.insertBefore(row, target.nextSibling);
+                } else {
+                    list.insertBefore(row, target);
+                }
+                saveBillNames(true);
+            }
+        }
+        window._billNameDragSrc = null;
+    }, { passive: false });
+
+    row.appendChild(handle);
+    row.appendChild(input);
+    return row;
 }
 
 function loadBillNames() {

@@ -3391,6 +3391,50 @@
        white-space: nowrap;
    }
 
+   .bill-name-row {
+       display: flex;
+       align-items: center;
+       border-radius: 6px;
+       transition: background 0.15s, opacity 0.15s;
+   }
+
+   .bill-name-row.drag-over {
+       background: rgba(0,0,0,0.05);
+   }
+
+   .bill-name-row.dragging {
+       opacity: 0.35;
+   }
+
+   .bill-name-row .bill-name-input {
+       flex: 1;
+       cursor: text;
+   }
+
+   .bill-name-handle {
+       width: 10px;
+       flex-shrink: 0;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       cursor: grab;
+       opacity: 0;
+       transition: opacity 0.15s;
+       margin-right: 2px;
+   }
+
+   .bill-name-row:hover .bill-name-handle {
+       opacity: 0.7;
+   }
+
+   .bill-name-handle {
+       opacity: 0.30;
+   }
+
+   .bill-name-handle:active {
+       cursor: grabbing;
+   }
+
    .bill-name-input::placeholder {
        font-size: 13px;
        font-weight: 600;
