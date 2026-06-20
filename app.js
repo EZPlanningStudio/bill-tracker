@@ -1,5 +1,12 @@
 const STORAGE_KEY = "simpleBillTrackerDataV1";
 
+window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_KEY) {
+        data = loadData();
+        renderAll();
+    }
+});
+
 const defaultData = {
     settings: {
         currencySymbol: "",
@@ -602,13 +609,13 @@ function bindEvents() {
             hamburger.style.display = "block";
         } else {
             panel.style.display = "block";
+            hamburger.style.display = "none";
             panel.style.animation = "none";
-            if (bills.length > 0) {
+            if ((data.bills || []).length > 0) {
                 requestAnimationFrame(() => {
                     panel.style.animation = "";
                 });
             }
-            hamburger.style.display = "none";
         }
 
     };
@@ -5071,7 +5078,9 @@ document.querySelectorAll(".bill-names-column .btn.soft").forEach(btn => {
         input.placeholder = `Type ${cleanTitle}...`;
 
         list.appendChild(input);
-        input.focus();
+        const textInput = input.querySelector(".bill-name-input");
+        if (textInput) textInput.focus();
+        else input.focus();
     });
 });
 

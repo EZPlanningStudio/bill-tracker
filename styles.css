@@ -651,6 +651,10 @@
        display: none;
    }
 
+   .app.collapsed .sidebar-copyright {
+       display: none;
+   }
+
    .app.collapsed .sidebar-collapse-btn svg {
        transform: rotate(180deg);
    }
