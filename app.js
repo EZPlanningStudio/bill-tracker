@@ -1,60 +1,11 @@
-const STORAGE_KEY = "proPaycheckBudgetDataV1";
+const STORAGE_KEY = "simpleBillTrackerDataV1";
 
 window.addEventListener("storage", (e) => {
     if (e.key === STORAGE_KEY) {
-        const _mySection = document.querySelector("nav button.active")?.dataset.section || "list";
         data = loadData();
-        renderPageHeader(_mySection);
-        renderFilterOptions();
-        renderBills();
-        renderCalendar();
-        renderMonthlyInsights();
-        renderYearlySummary();
-        renderSettings();
-        updateCurrencyInputDisplay();
-        if (typeof renderAllPaycheck  === "function" && _mySection === "paycheck")  renderAllPaycheck();
-        if (typeof renderAccountsPage === "function" && _mySection === "accounts") renderAccountsPage();
+        renderAll();
     }
 });
-
-const ACC_COL_TYPES = [
-    { type: "cash", label: "Cash", emoji: "💵", cls: "acc-col-cash",
-      help: "Cash accounts track physical money — banknotes, coins, or a wallet. Enter your current cash amount as the start balance.",
-      nameHelp: "Use a name that helps you identify this cash source — for example: Wallet, Cash Drawer, Petty Cash.",
-      namePlaceholder: "e.g. Wallet, Cash Drawer" },
-    { type: "bank", label: "Bank", emoji: "🏦", cls: "acc-col-bank",
-      help: "Bank accounts include checking and current accounts. Enter the balance shown in your bank app or statement as the start balance.",
-      nameHelp: "Use a name that matches your bank account — for example: Main Checking, Revolut, Joint Account.",
-      namePlaceholder: "e.g. Main Checking, Revolut" },
-    { type: "savings", label: "Savings", emoji: "🐷", cls: "acc-col-savings",
-      help: "Savings accounts are separate from your everyday spending. Enter your current savings balance as the start balance.",
-      nameHelp: "Use a name that describes what you're saving for — for example: Emergency Fund, Vacation, House Deposit.",
-      namePlaceholder: "e.g. Emergency Fund, Vacation" },
-    { type: "credit", label: "Credit Card", emoji: "💳", cls: "acc-col-credit",
-      help: "Credit card accounts track your card balance. Enter a <strong>negative</strong> start balance if you already have debt on the card (e.g. -500). Enter a <strong>positive</strong> balance if you overpaid and have money in your favor.",
-      nameHelp: "Use a name you'll recognise easily — for example: Barclays Credit Card, ING Mastercard, Amex Gold.",
-      namePlaceholder: "e.g. Barclays Credit Card, Amex Gold" },
-    { type: "investment", label: "Investment", emoji: "📈", cls: "acc-col-investment",
-      help: "Investment accounts include brokerage, retirement, or portfolio accounts. Enter the current value of your investments as the start balance.",
-      nameHelp: "Use a name that identifies the platform or fund — for example: Trading 212, Vanguard ISA, Pension Fund.",
-      namePlaceholder: "e.g. Trading 212, Vanguard ISA" }
-];
-
-window._ACCOUNT_EMOJIS = {
-    bank: "🏦",
-    cash: "💵",
-    savings: "🐷",
-    investment: "📈",
-    credit: "💳"
-};
-
-window._ACCOUNT_LABELS = {
-    bank: "Bank",
-    cash: "Cash",
-    savings: "Savings",
-    investment: "Investment",
-    credit: "Credit card"
-};
 
 const defaultData = {
     settings: {
@@ -63,11 +14,11 @@ const defaultData = {
         weekStart: ""
     },
     categories: [
-        "Income",
-        "Savings",
-        "Bills",
-        "Expenses",
-        "Debt Payments"
+        "Insurance",
+        "Subscriptions",
+        "Utilities",
+        "Housing & Loans",
+        "Other Bills"
     ],
     billDefaults: {
         id: null,
@@ -84,25 +35,13 @@ const defaultData = {
         interval: 1,
         endDate: null,
         notes: "",
-        paid: false,
-        fromAccount: null,
-        toAccount: null,
-        debtId: null
+        paid: false
     },
     bills: [],
     customCurrencies: [],
     billNameGroups: [],
     priorityNames: ["Critical", "High", "Medium", "Low", "Optional"],
-    monthlyBudgets: {},
-    paychecks: [],
-    paycheckBudgets: {},
-    paycheckSettings: {
-        frequency: "custom",
-        startDate: "",
-        namePrefix: "Paycheck"
-    },
-    accounts: [],
-    debts: []
+    monthlyBudgets: {}
 };
 
 let data = loadData();
@@ -215,7 +154,7 @@ const els = {
     billIntervalWrap: document.getElementById("billIntervalWrap"),
     billEndDate: document.getElementById("billEndDate"),
     billPaidAmount: document.getElementById("billPaidAmount"),
-    billPaidAmountWrap: document.getElementById("billPaidAmountWrap"),  
+    billPaidAmountWrap: document.getElementById("billPaidAmountWrap"),
     billPaidDate: document.getElementById("billPaidDate"),
     billPaidDateWrap: document.getElementById("billPaidDateWrap"),
     billEndDateWrap: document.getElementById("billEndDateWrap"),
@@ -228,11 +167,7 @@ const els = {
     categoryBreakdown: document.getElementById("categoryBreakdown"),
     currencySymbol: document.getElementById("currencySymbol"),
     currencyPosition: document.getElementById("currencyPosition"),
-    weekStart: document.getElementById("weekStart"),
-    paycheckFrequency: document.getElementById("paycheckFrequency"),
-    paycheckStartDate: document.getElementById("paycheckStartDate"),
-    paycheckNamePrefix: document.getElementById("paycheckNamePrefix"),
-    highlightPaycheckCalendar: document.getElementById("highlightPaycheckCalendar")
+    weekStart: document.getElementById("weekStart")
 };
 
 function extendRecurringSeries() {
@@ -289,8 +224,6 @@ function extendRecurringSeries() {
 
 let resizeTimer;
 let lastWindowWidth = window.innerWidth;
-let currentActiveSection = localStorage.getItem("proPaycheckActiveSection") || "list";
-let listFiltersLoaded = false;
 window.addEventListener("resize", () => {
     const newWidth = window.innerWidth;
     if (newWidth === lastWindowWidth) return;
@@ -344,7 +277,7 @@ window.addEventListener("scroll", () => {
 })();
 
 function init() {
-    document.title = `Pro Paycheck Budget App v${APP_VERSION}`;
+    document.title = `Bill Payment Tracker v${APP_VERSION}`;
     const versionEl = document.getElementById("appVersion");
     if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
     renderMiniCalendar();
@@ -386,15 +319,14 @@ function init() {
         trigger.style.setProperty("background-image", `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='${arrow}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E")`, "important");
     });
 
-    const savedSection = localStorage.getItem("proPaycheckActiveSection");
-    const hasSeenQuickStart = localStorage.getItem("proPaycheckHasSeenQuickStart");
+    const savedSection = localStorage.getItem("activeSection");
+    const hasSeenQuickStart = localStorage.getItem("hasSeenQuickStart");
 
     if (!hasSeenQuickStart) {
         showSection("quickstart");
-        localStorage.setItem("proPaycheckHasSeenQuickStart", "true");
+        localStorage.setItem("hasSeenQuickStart", "true");
     } else if (savedSection) {
         showSection(savedSection);
-        if (savedSection === "paycheck") renderAllPaycheck();
     } else {
         showSection("list");
     }
@@ -413,10 +345,7 @@ function normalizeAppData(rawData = {}) {
             ...base.settings,
             ...(source.settings || {})
         },
-        categories: (() => {
-            const cats = Array.isArray(source.categories) ? source.categories : base.categories;
-            return cats.filter(c => c !== "Transfers");
-        })(),
+        categories: Array.isArray(source.categories) ? source.categories : base.categories,
         bills: Array.isArray(source.bills)
             ? source.bills.map(bill => ({
                 ...base.billDefaults,
@@ -429,19 +358,13 @@ function normalizeAppData(rawData = {}) {
                 frequency: bill.frequency || "one-time",
                 interval: Number(bill.interval) > 0 ? Number(bill.interval) : 1,
                 endDate: bill.endDate ?? null,
-                paid: Boolean(bill.paid),
-                debtId: bill.debtId ?? null
+                paid: Boolean(bill.paid)
             }))
             : [],
         customCurrencies: Array.isArray(source.customCurrencies) ? source.customCurrencies : [],
         billNameGroups: Array.isArray(source.billNameGroups) ? source.billNameGroups : [],
         priorityNames: Array.isArray(source.priorityNames) ? source.priorityNames : base.priorityNames,
-        monthlyBudgets: source.monthlyBudgets && typeof source.monthlyBudgets === "object" ? source.monthlyBudgets : {},
-        paychecks: Array.isArray(source.paychecks) ? source.paychecks : [],
-        paycheckBudgets: source.paycheckBudgets && typeof source.paycheckBudgets === "object" ? source.paycheckBudgets : {},
-        paycheckSettings: source.paycheckSettings && typeof source.paycheckSettings === "object" ? source.paycheckSettings : { frequency: "custom", startDate: "", namePrefix: "Paycheck" },
-        accounts: Array.isArray(source.accounts) ? source.accounts : [],
-        debts: Array.isArray(source.debts) ? source.debts : []
+        monthlyBudgets: source.monthlyBudgets && typeof source.monthlyBudgets === "object" ? source.monthlyBudgets : {}
     };
 }
 
@@ -510,17 +433,11 @@ function bindEvents() {
         if (selectId === "filterStatus" || selectId === "calFilterStatus") return value;
         if (selectId === "filterPriority" || selectId === "calFilterPriority") return `pri-${value}`;
         if (selectId === "filterCategory" || selectId === "calFilterCategory") {
-            if (value === "Transfers") return "cat-6";
-            if (value === "Investments") return "cat-7";
             const idx = data.categories.indexOf(value);
             return idx !== -1 ? `cat-${idx + 1}` : "default";
         }
-        if (selectId === "accFilterType") {
-            const map = { cash: "cat-3", bank: "cat-1", savings: "cat-2", credit: "cat-5", investment: "cat-7" };
-            return map[value] || "default";
-        }
-        if (selectId === "filterMonth" || selectId === "calFilterMonth" || selectId === "accFilterMonth") return `month-${value}`;
-        if (selectId === "filterYear"  || selectId === "calFilterYear"  || selectId === "accFilterYear")  return "year";
+        if (selectId === "filterMonth" || selectId === "calFilterMonth") return `month-${value}`;
+        if (selectId === "filterYear" || selectId === "calFilterYear") return "year";
         if (selectId === "calNavPeriod") {
             const m = parseInt(value.split("-")[1]) + 1;
             return `month-${m}`;
@@ -589,8 +506,6 @@ function bindEvents() {
                 "cat-3": { bg: "var(--yellow-soft-2)", border: "var(--yellow)", text: "var(--yellow-text)", arrow: "%23c48600" },
                 "cat-4": { bg: "var(--orange-soft-2)", border: "var(--orange)", text: "var(--orange-text)", arrow: "%23f36300" },
                 "cat-5": { bg: "var(--pink-soft-2)", border: "var(--pink)", text: "var(--pink-text)", arrow: "%23fa3a7c" },
-                "cat-6": { bg: "var(--peach-soft-2)", border: "var(--peach)", text: "var(--peach-text)", arrow: "%23d07b82" },
-                "cat-7": { bg: "var(--blue-soft-2)", border: "var(--blue)", text: "var(--blue-text)", arrow: "%231565c0" },
                 "month-1": { bg: "var(--pink-soft-2)", border: "var(--pink)", text: "var(--pink-text)", arrow: "%23fa3a7c" },
                 "month-7": { bg: "var(--pink-soft-2)", border: "var(--pink)", text: "var(--pink-text)", arrow: "%23fa3a7c" },
                 "month-2": { bg: "var(--orange-soft-2)", border: "var(--orange)", text: "var(--orange-text)", arrow: "%23f36300" },
@@ -882,33 +797,12 @@ function bindEvents() {
     });
 
     els.billFrequency.addEventListener("change", updateRecurringFieldsVisibility);
-    els.billCategory.addEventListener("change", () => {
-        renderBillNameOptions();
-        updateTypeOptions();
-        updateSaveAndMarkBtn();
-         
-        updatePaidLabels();
-    });
+    els.billCategory.addEventListener("change", renderBillNameOptions);
     els.billType.addEventListener("change", () => {
+        const saveAndPaidBtn = document.getElementById("saveAndPaidBtn");
         if (els.editingId.value) return;
-        updateTypeOptions();
-        updateSaveAndMarkBtn(); 
-        updatePaidLabels();
-        updateDebtPaymentAccounts();
-    });
-
-    els.billName.addEventListener("change", () => {
-        if (els.billCategory.value === "Debt Payments") {
-            updateDebtPaymentAccounts();
-        }
-    });
-
-    document.getElementById("billFrom").addEventListener("change", () => {
-        filterAccountDropdowns();
-    });
-
-    document.getElementById("billTo").addEventListener("change", () => {
-        filterAccountDropdowns();
+        const isRefund = els.billType.value === "refund";
+        saveAndPaidBtn.textContent = isRefund ? "Save & Mark Received" : "Save & Mark Paid";
     });
 
     els.billAmount.addEventListener("blur", () => {
@@ -1158,33 +1052,6 @@ function bindEvents() {
                 renderCalendar();
             }
 
-            if (field === els.paycheckFrequency) {
-                data.paycheckSettings.frequency = field.value;
-                updatePaycheckSetupVisibility();
-            }
-
-            if (field === els.paycheckStartDate) {
-                data.paycheckSettings.startDate = field.value;
-            }
-
-            if (field === els.paycheckNamePrefix) {
-                data.paycheckSettings.namePrefix = field.value;
-            }
-
-            if (field === els.highlightPaycheckCalendar) {
-                data.paycheckSettings.highlightCalendar = field.value;
-                renderCalendar();
-            }
-
-            const semiDay1El = document.getElementById("paycheckSemiDay1");
-            const semiDay2El = document.getElementById("paycheckSemiDay2");
-            if (field === semiDay1El) {
-                data.paycheckSettings.semiDay1 = parseInt(field.value) || 1;
-            }
-            if (field === semiDay2El) {
-                data.paycheckSettings.semiDay2 = parseInt(field.value) || 15;
-            }
-
             saveData();
 
             if (field === els.currencySymbol || field === els.currencyPosition) {
@@ -1373,7 +1240,8 @@ function setRainbowTitle(text, secondaryWord = null) {
     }
 
     document.querySelectorAll(".title-month-caret").forEach(el => el.remove());
-    if (currentActiveSection === "monthly") {
+    const activeSection = localStorage.getItem("activeSection") || "list";
+    if (activeSection === "monthly") {
         const caret = document.createElement("span");
         caret.className = "title-month-caret";
         caret.innerHTML = `<svg width="12" height="8" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
@@ -1388,7 +1256,7 @@ function setRainbowTitle(text, secondaryWord = null) {
                 initInsightsMonthDropdown();
             }
         };
-    } else if (currentActiveSection === "yearly") {
+    } else if (activeSection === "yearly") {
         const caret = document.createElement("span");
         caret.className = "title-month-caret";
         caret.innerHTML = `<svg width="12" height="8" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
@@ -1433,22 +1301,19 @@ function openAddBillWithDate(dateString) {
 function closeAddBillModal() {
     document.getElementById("addBillModal").classList.remove("active");
     resetForm();
-    if (currentActiveSection === "add") {
-        localStorage.setItem("proPaycheckActiveSection", "list");
-        currentActiveSection = "list";
+    if (localStorage.getItem("activeSection") === "add") {
+        localStorage.setItem("activeSection", "list");
     }
 }
 
 const sectionConfig = {
-    list: { main: "transaction", secondary: "list", getLabel: () => buildListLabel() },
-    calendar: { main: "Calendar", secondary: "smart", getLabel: () => buildCalendarLabel() },
+    list: { main: "bill", secondary: "list", getLabel: () => buildListLabel() },
+    calendar: { main: "Calendar", secondary: "bill", getLabel: () => buildCalendarLabel() },
     monthly: { main: () => getCurrentMonthName(), secondary: "insights", getLabel: () => `${currentCalendarDate.getFullYear()} <span class="title-year-caret"><svg width="12" height="8" viewBox="0 0 12 8" xmlns="http://www.w3.org/2000/svg"><path d="M1 1.5L6 6.5L11 1.5" stroke="#bbb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></span>` },
-    paycheck: { main: "paycheck", secondary: "budget", getLabel: null },
     yearly: { main: () => String(currentCalendarDate.getFullYear()), secondary: "overview", getLabel: null },
     settings: { main: "Settings", getLabel: null },
     backup: { main: "Backup", getLabel: null },
     quickstart: { main: "quick start", secondary: "guide", getLabel: null },
-    accounts: { main: "accounts", secondary: "bank", getLabel: null },
 };
 
 function buildListLabel() {
@@ -1459,7 +1324,7 @@ function buildListLabel() {
     const yearFilter = document.getElementById("filterYear")?.value ?? "";
 
     const hasFilter = statusFilter || priorityFilter !== "" || categoryFilter || monthFilter || yearFilter;
-    return hasFilter ? "Filtered Transactions" : "All Transactions";
+    return hasFilter ? "Filtered Bills" : "All Bills";
 }
 
 function buildCalendarLabel() {
@@ -1467,7 +1332,7 @@ function buildCalendarLabel() {
     const priorityFilter = document.getElementById("calFilterPriority")?.value ?? "";
     const categoryFilter = document.getElementById("calFilterCategory")?.value ?? "";
     const hasFilter = statusFilter || priorityFilter !== "" || categoryFilter;
-    return hasFilter ? "Filtered Transactions" : "All Transactions";
+    return hasFilter ? "Filtered Bills" : "All Bills";
 }
 
 function updateSectionLabel(section) {
@@ -1516,8 +1381,7 @@ function showSection(section) {
     if (existingIpb) existingIpb.remove();
     document.querySelector(".summary-grid-top")?.classList.remove("has-progress-bar");
 
-    localStorage.setItem("proPaycheckActiveSection", section);
-    currentActiveSection = section;
+    localStorage.setItem("activeSection", section);
     document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
     document.getElementById(`section-${section}`).classList.add("active");
 
@@ -1527,14 +1391,14 @@ function showSection(section) {
     renderPageHeader(section);
 
     const config = sectionConfig[section];
-    document.getElementById("pageTitle").classList.remove("page-calendar", "page-list", "page-monthly", "page-yearly", "page-settings", "page-backup", "page-quickstart", "page-accounts");
+    document.getElementById("pageTitle").classList.remove("page-calendar", "page-list", "page-monthly", "page-yearly", "page-settings", "page-backup", "page-quickstart");
     document.getElementById("pageTitle").classList.add(`page-${section}`);
 
     if (config && typeof config.main !== "undefined") {
         const mainText = typeof config.main === "function" ? config.main() : config.main;
         setRainbowTitle(mainText, config.secondary || null);
     } else {
-        setRainbowTitle("Pro Paycheck");
+        setRainbowTitle("Bill Tracker");
     }
 
     updateSectionLabel(section);
@@ -1542,13 +1406,6 @@ function showSection(section) {
     if (section === "calendar") {
         selectedCalDay = null;
         renderCalendar();
-    }
-
-    if (section === "paycheck") {
-        renderAllPaycheck();
-    } else {
-        document.querySelectorAll(".paycheck-interval").forEach(el => el.remove());
-        document.getElementById("pageTitle")?.classList.remove("page-paycheck");
     }
 
     if (section === "monthly") {
@@ -1559,14 +1416,10 @@ function showSection(section) {
     if (section === "yearly") {
         renderYearlySummary();
     }
-
-    if (section === "accounts") {
-        if (typeof renderAccountsPage === "function") renderAccountsPage();
-    }
 }
 
 function renderAll() {
-    const activeSection = currentActiveSection;
+    const activeSection = localStorage.getItem("activeSection") || "list";
     renderPageHeader(activeSection);
     renderFilterOptions();
     renderBills();
@@ -1575,7 +1428,6 @@ function renderAll() {
     renderYearlySummary();
     renderSettings();
     updateCurrencyInputDisplay();
-    if (typeof renderAccountsPage === "function" && activeSection === "accounts") renderAccountsPage();
 }
 
 function renderAllPreservingCalPanel() {
@@ -1595,43 +1447,12 @@ function renderAllPreservingCalPanel() {
     }
 }
 
-function openTransfersInfoModal() {
-    if (localStorage.getItem("proPaycheckTransfersSeen") === "true") return;
-    setTimeout(() => {
-        const el = document.getElementById("transfersInfoModal");
-        if (el) el.classList.add("active");
-    }, 50);
-}
-
-function closeTransfersInfoModal(dontShow = false) {
-    if (dontShow) localStorage.setItem("proPaycheckTransfersSeen", "true");
-    document.getElementById("transfersInfoModal").classList.remove("active");
-}
-
-function openInvestmentsInfoModal() {
-    if (localStorage.getItem("proPaycheckInvestmentsSeen") === "true") return;
-    setTimeout(() => {
-        const el = document.getElementById("investmentsInfoModal");
-        if (el) el.classList.add("active");
-    }, 50);
-}
-
-function closeInvestmentsInfoModal(dontShow = false) {
-    if (dontShow) localStorage.setItem("proPaycheckInvestmentsSeen", "true");
-    document.getElementById("investmentsInfoModal").classList.remove("active");
-}
-
-window.closeTransfersInfoModal = closeTransfersInfoModal;
-window.closeInvestmentsInfoModal = closeInvestmentsInfoModal;
-
 function renderCategoryOptions() {
     els.billCategory.innerHTML = `
         <option value="">Select category</option>
         ${data.categories
             .map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
             .join("")}
-        <option value="Investments">Investments</option>
-        <option value="Transfers">Transfers</option>
     `;
 
     const priorityNames = Array.isArray(data.priorityNames) && data.priorityNames.some(name => name.trim())
@@ -1650,40 +1471,20 @@ function renderCategoryOptions() {
 
 function renderBillNameOptions() {
     const selectedCategory = els.billCategory.value;
+    const group = data.billNameGroups.find(group => group.title === selectedCategory);
+    const names = group?.names || [];
 
     if (!selectedCategory) {
         els.billName.innerHTML = `<option value="">Select category first</option>`;
         return;
     }
 
-    if (selectedCategory === "Investments") {
-        els.billName.innerHTML = `<option value="Investments">Investments</option>`;
-        const billNameWrap = els.billName.closest("label");
-        if (billNameWrap) billNameWrap.style.display = "none";
-        return;
-    }
-
-    if (selectedCategory === "Debt Payments") {
-        const debts = data.debts || [];
-        els.billName.innerHTML = debts.length
-            ? `<option value="">Select debt</option>` +
-              debts.map(d => {
-                  const emoji = d.type === "credit_card" ? "💳" : d.type === "loan" ? "🏦" : "📋";
-                  return `<option value="${escapeHtml(d.name)}">${emoji} ${escapeHtml(d.name)}</option>`;
-              }).join("")
-            : `<option value="">Add debts in Settings</option>`;
-        return;
-    }
-
-    const group = data.billNameGroups.find(group => group.title === selectedCategory);
-    const names = group?.names || [];
-
     els.billName.innerHTML = names.length
         ? `
-            <option value="">Select transaction name</option>
+            <option value="">Select bill name</option>
             ${names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}
         `
-        : `<option value="">Add names in Settings</option>`;
+        : `<option value="">Add bill names in Settings first</option>`;
 }
 
 function renderCustomCurrencies() {
@@ -1703,9 +1504,6 @@ function renderSettings() {
     els.currencySymbol.value = data.settings.currencySymbol;
     els.currencyPosition.value = data.settings.currencyPosition;
     els.weekStart.value = data.settings.weekStart;
-    loadPaycheckSettings();
-    renderAccountsCols();
-    renderDebts();
 }
 
 function generateRecurringBills(bill) {
@@ -1742,7 +1540,7 @@ function generateRecurringBills(bill) {
 }
 
 function isActivated() {
-    return localStorage.getItem("proPaycheckActivated") === "true";
+    return localStorage.getItem("billTrackerActivated") === "true";
 }
 
 function showActivationModal() {
@@ -1759,9 +1557,8 @@ function toggleBackupGuide() {
 
 function closeActivationModal() {
     document.getElementById("activationModal").classList.remove("active");
-    if (currentActiveSection === "add") {
-        localStorage.setItem("proPaycheckActiveSection", "list");
-        currentActiveSection = "list";
+    if (localStorage.getItem("activeSection") === "add") {
+        localStorage.setItem("activeSection", "list");
     }
 }
 
@@ -1769,8 +1566,8 @@ function submitActivationCode() {
     const input = document.getElementById("activationCodeInput");
     const error = document.getElementById("activationError");
     const code = input.value.trim();
-    if (code === "X7KFMTBW9P") {
-        localStorage.setItem("proPaycheckActivated", "true");
+    if (code === "ui4GMBVpIDnv") {
+        localStorage.setItem("billTrackerActivated", "true");
         closeActivationModal();
         const menuActivation = document.getElementById("menuActivation");
         if (menuActivation) menuActivation.style.display = "none";
@@ -1800,17 +1597,9 @@ function handleSaveBill(event) {
     const bill = {
         id,
         seriesId: existing?.seriesId || id,
-        name: existing ? existing.name : (els.billCategory.value === "Transfers"
-            ? (() => {
-                const fromId = document.getElementById("billFrom")?.value || "";
-                const toId = document.getElementById("billTo")?.value || "";
-                const fromAcc = data.accounts.find(a => a.id === fromId);
-                const toAcc = data.accounts.find(a => a.id === toId);
-                return `Account Transfer`;
-            })()
-            : els.billName.value.trim()),
+        name: existing ? existing.name : els.billName.value.trim(),
         category: existing ? existing.category : els.billCategory.value,
-        type: existing ? existing.type : els.billType.value,      
+        type: existing ? existing.type : els.billType.value,
         amount: Number(els.billAmount.value),
         actualAmount: existing ? (els.billPaidAmount.value !== "" ? Number(els.billPaidAmount.value) : null) : null,
         dueDate: existing ? existing.dueDate : els.billDate.value,
@@ -1820,24 +1609,17 @@ function handleSaveBill(event) {
         interval: existing ? existing.interval : (Number(els.billInterval.value) || 1),
         endDate: els.billEndDate.value || null,
         notes: els.billNotes.value.trim(),
-        paid: existing ? existing.paid : false,
-        fromAccount: (document.getElementById("billFromWrap")?.style.display !== "none") ? (document.getElementById("billFrom")?.value || null) : null,
-        toAccount: (document.getElementById("billToWrap")?.style.display !== "none") ? (document.getElementById("billTo")?.value || null) : null
+        paid: existing ? existing.paid : false
     };
-
-    const fromVisible = document.getElementById("billFromWrap")?.style.display !== "none";
-    const toVisible = document.getElementById("billToWrap")?.style.display !== "none";
 
     const validationFields = [
         { elId: "billCategory", valid: () => els.billCategory.value !== "" },
-        { elId: "billName", valid: () => els.billCategory.value === "Transfers" || els.billName.value !== "" },
-        { elId: "billType", valid: () => els.billCategory.value === "Transfers" || els.billType.value !== "" },
+        { elId: "billName", valid: () => els.billName.value !== "" },
+        { elId: "billType", valid: () => els.billType.value !== "" },
         { elId: "billAmount", valid: () => els.billAmount.value !== "" && Number(els.billAmount.value) > 0 },
         { elId: "billDate", valid: () => els.billDate.value !== "" || (!!els.editingId.value && !!data.bills.find(b => b.id === els.editingId.value)?.dueDate) },
-        { elId: "billPriority", valid: () => els.billPriority.required === false || els.billPriority.value !== "" },
-        { elId: "billFrequency", valid: () => els.billFrequency.value !== "" },
-        { elId: "billFrom", valid: () => !fromVisible || document.getElementById("billFrom")?.value !== "" },
-        { elId: "billTo", valid: () => !toVisible || document.getElementById("billTo")?.value !== "" }
+        { elId: "billPriority", valid: () => els.billPriority.value !== "" },
+        { elId: "billFrequency", valid: () => els.billFrequency.value !== "" }
     ];
 
     // Curăță erorile anterioare
@@ -1997,7 +1779,7 @@ function resetForm() {
     els.billDate.classList.remove("has-value");
     els.billPaidDate.classList.remove("has-value");
     els.editingId.value = "";
-    els.saveBillBtn.textContent = "Save";
+    els.saveBillBtn.textContent = "Save Bill";
     els.saveBillBtn.classList.remove("update-mode");
     els.cancelEditBtn.style.display = "none";
     els.billCategory.disabled = false;
@@ -2016,7 +1798,7 @@ function resetForm() {
     els.billPaidDateWrap.style.display = "none";
     renderCategoryOptions();
     updateRecurringFieldsVisibility();
-    document.getElementById("addBillModalTitle").innerHTML = "<span class=\"help-icon\" data-help-title=\"Adding a transaction\" data-help=\"Add one-time or recurring transactions.&lt;br&gt;&lt;br&gt;Each field has its own icon with more details.\" style=\"cursor:pointer; margin-right:6px;\">📋</span>Add a transaction";
+    document.getElementById("addBillModalTitle").innerHTML = "<span class=\"help-icon\" data-help-title=\"Adding a bill\" data-help=\"Add one-time or recurring bills.&lt;br&gt;&lt;br&gt;Each field has its own icon with more details.\" style=\"cursor:pointer; margin-right:6px;\">📋</span>Add a bill";
     document.getElementById("saveAndAddBtn").style.removeProperty("display");
     els.saveBillBtn.style.display = "";
     els.saveBillBtn.classList.remove("update-mode");
@@ -2027,28 +1809,11 @@ function resetForm() {
     saveAndPaidBtn.textContent = "Save & Mark Paid";
     saveAndPaidBtn.classList.remove("btn-orange");
     saveAndPaidBtn.classList.add("btn-green");
-     updateTypeOptions();
-    const billNameWrap = els.billName.closest("label");
-    const billTypeWrap = els.billType.closest("label");
-    if (billNameWrap) billNameWrap.style.display = "";
-    if (billTypeWrap) billTypeWrap.style.display = "";
-    const fromEl = document.getElementById("billFrom");
-    const toEl = document.getElementById("billTo");
-    if (fromEl) fromEl.innerHTML = "";
-    if (toEl) toEl.innerHTML = "";
-    const fromWrap = document.getElementById("billFromWrap");
-    const toWrap = document.getElementById("billToWrap");
-    if (fromWrap) fromWrap.style.display = "none";
-    if (toWrap) toWrap.style.display = "none";  
-    updatePaidLabels();
 }
 
 function setEditHelpTexts(isRecurring) {
     const helpTexts = {
-        billCategory: "This field cannot be changed after a transaction is created. To use a different category, delete this transaction and create a new one.",
-        billName: "This field cannot be changed after a transaction is created. To use a different name, delete this transaction and create a new one.",
-        billType: "This field cannot be changed after a transaction is created. To use a different type, delete this transaction and create a new one.",
-        billAmount: "This is the planned amount set when the transaction was created. It cannot be changed. If the actual amount paid differs, enter it in Paid Amount below.",
+        billCategory: "This field cannot be changed after a bill is created. To use a different category, delete this bill and create a new one.",
         billName: "This field cannot be changed after a bill is created. To use a different name, delete this bill and create a new one.",
         billType: "This field cannot be changed after a bill is created. To use a different type, delete this bill and create a new one.",
         billAmount: "This is the planned amount set when the bill was created. It cannot be changed. If the actual amount paid differs, enter it in Paid Amount below.",
@@ -2070,13 +1835,13 @@ function setEditHelpTexts(isRecurring) {
 
 function resetHelpTexts() {
     const helpTexts = {
-        billCategory: "💰 <strong>Income</strong> — salary, freelance, any earnings. Use <em>Received</em> for incoming payments and <em>Returned</em> for money you paid back.<br><br>🐷 <strong>Savings</strong> — money you set aside for the future. Use <em>Deposit</em> when you move money into savings, and <em>Withdrawal</em> when you take it back out. Reduces your left-to-spend balance.<br><br>🏠 <strong>Bills</strong> — regular fixed payments: rent, subscriptions, insurance, utilities.<br><br>🛒 <strong>Expenses</strong> — variable day-to-day spending: groceries, dining out, fuel, shopping.<br><br>⚠️ Any payment made with a <strong>credit card</strong> is <strong>not deducted</strong> from your left-to-spend — it appears in your category totals but doesn't affect your available cash. You can track this in the <strong>Monthly Insights</strong> and <strong>Paycheck Budget</strong> pages.<br><br>💳 <strong>Debt Payments</strong> — payments toward a debt. Set up your debts in Settings first. Keeps debt tracking accurate and separate from regular expenses.<br><br>📈 <strong>Investments</strong><br>Use this category to record money you're moving into or out of an investment account — for example, buying stocks, funding a portfolio, or withdrawing from an investment platform.<br><br><strong>What it does:</strong><br>• Deposits reduce your left-to-spend balance, just like an expense would.<br>• Withdrawals add back to your left-to-spend balance.<br><br><strong>What it doesn't do:</strong><br>This category does not track your investment performance, portfolio value, or returns. It only records the cash movement in and out of your investment account.<br><br><strong>Coming in the Ultimate version:</strong><br>The Ultimate Paycheck Budget App will include a dedicated Investments page with full portfolio tracking, category breakdowns, and a separate dashboard.<br><br>🔄 <strong>Transfers</strong><br>A Transfer moves money between your everyday accounts — for example, from your bank account to your wallet, or from one bank account to another.<br><br><strong>What Transfers are NOT for:</strong><br>• <strong>Savings deposits or withdrawals</strong> — use the Savings category instead. This keeps your savings balance and your budget in sync.<br>• <strong>Investment deposits or withdrawals</strong> — use the Investments category instead, for the same reason.<br>• <strong>Paying off a credit card debt</strong> — use Debt Payments for that. Transfers to a credit card are only for moving money you already have, not for repaying a loan or credit balance.<br><br><strong>Why don't I see my Savings or Investment accounts here?</strong><br>Savings and Investment accounts are intentionally excluded from Transfers. Moving money into them through a Transfer would update the account balance but not your budget — your left-to-spend wouldn't change, and your categories wouldn't reflect the movement. Always use the correct category to keep everything in sync.",
-        billName: "Select the transaction name from the dropdown. Transaction names are managed in the Settings page.",
-        billType: "Select Payment for regular transactions and expenses. Select Refund for reimbursements or returned payments.",
-        billFrequency: "Select how often this transaction repeats. Choose One-time for a single payment, or Daily, Weekly, Monthly, Yearly for recurring transactions. If you select a recurring frequency, Interval and End Date fields will appear.",
-        billDate: "Enter the transaction's due date. For recurring transactions, this is the first due date — the recurring series starts from this date. This date is used to organize and calculate expected amounts across all reports.",
-        billFrequency: "Select how often this transaction repeats. Choose One-time for a single payment, or Daily, Weekly, Monthly, Yearly for recurring transactions. If you select a recurring frequency, Interval and End Date fields will appear.",
-        billInterval: "Enter a number that sets how often the transaction repeats based on the selected Frequency. 1 = every unit, 2 = every 2 units, and so on. The Due Date is always the starting point."
+        billCategory: "Select the category for this bill. Categories are managed in the Settings page.",
+        billName: "Select the bill name from the dropdown. Bill names are managed in the Settings page.",
+        billType: "Select Payment for regular bills and expenses. Select Refund for reimbursements or returned payments.",
+        billAmount: "Enter the planned bill amount. This amount is used unless a New/Paid Amount is entered later in the Edit section. The original Amount stays saved as the planned value, while New/Paid Amount is used as the updated/actual amount in the app display and future reports.",
+        billDate: "Enter the bill's due date. For recurring bills, this is the first due date — the recurring series starts from this date. This date is used to organize and calculate expected amounts across all reports.",
+        billFrequency: "Select how often this bill repeats. Choose One-time for a single payment, or Daily, Weekly, Monthly, Yearly for recurring bills. If you select a recurring frequency, Interval and End Date fields will appear.",
+        billInterval: "Enter a number that sets how often the bill repeats based on the selected Frequency. 1 = every unit, 2 = every 2 units, and so on. The Due Date is always the starting point."
     };
 
     Object.entries(helpTexts).forEach(([id, text]) => {
@@ -2099,10 +1864,8 @@ function editBill(id) {
     els.editingId.value = bill.id;
     els.billCategory.value = bill.category;
     renderBillNameOptions();
-    updateTypeOptions(bill.type);
-    updatePaidLabels();
     els.billName.value = bill.name;
-    els.billType.value = bill.type;  
+    els.billType.value = bill.type;
     els.billAmount.value = Number(bill.amount).toFixed(2);
     els.billDate.value = bill.dueDate;
     els.billPriority.value = bill.priority;
@@ -2110,15 +1873,15 @@ function editBill(id) {
     els.billInterval.value = bill.interval || 1;
     els.billEndDate.value = bill.endDate || "";
     els.billNotes.value = bill.notes || "";
-    const fromEl = document.getElementById("billFrom");
-    const toEl = document.getElementById("billTo");
-    if (fromEl) { fromEl.innerHTML = getAccountOptions(bill.category, bill.type, "from"); fromEl.value = bill.fromAccount || ""; }
-    if (toEl) { toEl.innerHTML = getAccountOptions(bill.category, bill.type, "to"); toEl.value = bill.toAccount || ""; }
 
     els.billPaidAmountWrap.style.display = "";
     els.billPaidDateWrap.style.display = "";
     const freqLabel = els.billFrequency.closest("label");
-    freqLabel.classList.remove("grid-row-break");
+    if (isRecurring) {
+        freqLabel.classList.add("grid-row-break");
+    } else {
+        freqLabel.classList.remove("grid-row-break");
+    }
     els.billPaidAmount.value = bill.actualAmount != null ? Number(bill.actualAmount).toFixed(2) : "";
     els.billPaidDate.value = bill.actualDate || "";
     els.billPaidDate.classList.toggle("has-value", !!bill.actualDate);
@@ -2153,7 +1916,7 @@ function editBill(id) {
         els.billDate.disabled = true;
     }
 
-    document.getElementById("addBillModalTitle").innerHTML = isRecurring ? "<span class=\"help-icon\" data-help-title=\"Editing a recurring transaction\" data-help=\"Here you can update the amount, priority, end date and notes.&lt;br&gt;&lt;br&gt;Category, Name, Type, Frequency and Interval cannot be changed after a transaction is created.&lt;br&gt;&lt;br&gt;If you need to change the frequency or interval, close this series with an End Date and create a new transaction with the correct settings.\" style=\"cursor:pointer; margin-right:6px;\">✏️</span>Edit transaction" : "<span class=\"help-icon\" data-help-title=\"Editing a one-time transaction\" data-help=\"Here you can update the amount, due date, priority and notes.&lt;br&gt;&lt;br&gt;Category, Name, Type and Frequency cannot be changed after a transaction is created.\" style=\"cursor:pointer; margin-right:6px;\">✏️</span>Edit transaction";
+    document.getElementById("addBillModalTitle").innerHTML = isRecurring ? "<span class=\"help-icon\" data-help-title=\"Editing a recurring bill\" data-help=\"Here you can update the amount, priority, end date and notes.&lt;br&gt;&lt;br&gt;Category, Name, Type, Frequency and Interval cannot be changed after a bill is created.&lt;br&gt;&lt;br&gt;If you need to change the frequency or interval, close this series with an End Date and create a new bill with the correct settings.\" style=\"cursor:pointer; margin-right:6px;\">✏️</span>Edit bill" : "<span class=\"help-icon\" data-help-title=\"Editing a one-time bill\" data-help=\"Here you can update the amount, due date, priority and notes.&lt;br&gt;&lt;br&gt;Category, Name, Type and Frequency cannot be changed after a bill is created.\" style=\"cursor:pointer; margin-right:6px;\">✏️</span>Edit bill";
     document.getElementById("saveAndAddBtn").style.display = "none";
 
     const saveAndPaidBtn = document.getElementById("saveAndPaidBtn");
@@ -2178,7 +1941,7 @@ function editBill(id) {
         document.getElementById("updateThisOnly").style.display = "";
         document.getElementById("updateFromHere").style.display = "";
     } else {
-        els.saveBillBtn.textContent = "Update Transaction";
+        els.saveBillBtn.textContent = "Update Bill";
         els.saveBillBtn.classList.add("update-mode");
         els.saveBillBtn.style.display = "";
         document.getElementById("updateThisOnly").style.display = "none";
@@ -2193,7 +1956,7 @@ function deleteBill(id) {
     if (!bill) return;
 
     if (bill.frequency === "one-time") {
-        if (!confirm("Delete this transaction?")) return;
+        if (!confirm("Delete this bill?")) return;
         data.bills = data.bills.filter(b => b.id !== id);
         saveData();
         renderAll();
@@ -2206,387 +1969,19 @@ function deleteBill(id) {
 }
 
 function getPaidLabel(bill) {
-    if (bill.type === "refund") {
-        if (bill.category === "Savings") return "Withdrawn";
-        if (bill.category === "Investments") return "Withdrawn";
-        if (bill.category === "Income") return "Returned";
-        return "Received";
-    }
-    if (bill.category === "Income") return "Received";
-    if (bill.category === "Savings") return "Saved";
-    if (bill.category === "Investments") return "Invested";
-    if (bill.category === "Transfers") return "Done";
-    return "Paid";
+    return bill.type === "refund" ? "Received" : "Paid";
 }
 
 function getUnpaidLabel(bill) {
-    if (bill.type === "refund") {
-        if (bill.category === "Savings") return "Not Withdrawn";
-        if (bill.category === "Investments") return "Not Withdrawn";
-        if (bill.category === "Income") return "Not Returned";
-        return "Not Received";
-    }
-    if (bill.category === "Income") return "Not Received";
-    if (bill.category === "Savings") return "Not Saved";
-    if (bill.category === "Investments") return "Not Invested";
-    if (bill.category === "Transfers") return "Undone";
-    return "Unpaid";
-}
-
-function isFromCreditAccount(bill) {
-    if (!bill.fromAccount) return false;
-    const acc = (data.accounts || []).find(a => a.id === bill.fromAccount);
-    return acc?.type === "credit";
-}
-
-function calcAutoRollover(beforeDate) {
-    const spendingCats = data.categories.slice(2);
-    const getAmt = b => b.type === "refund"
-        ? -(parseFloat(getBillDisplayAmount(b)) || 0)
-        :  (parseFloat(getBillDisplayAmount(b)) || 0);
-    const bills = (data.bills || []).filter(b => {
-        if (!b.paid) return false;
-        const d = parseLocalDate(getBillDisplayDate(b));
-        return d < beforeDate;
-    });
-    const startBalances = (data.accounts || [])
-        .filter(a => a.type === "bank" || a.type === "cash")
-        .reduce((s, a) => s + (parseFloat(a.startBalance) || 0), 0);
-    const income      = bills.filter(b => b.category === data.categories[0]).reduce((s, b) => s + getAmt(b), 0);
-    const savings     = bills.filter(b => b.category === data.categories[1]).reduce((s, b) => s + getAmt(b), 0);
-    const cashSpent   = bills.filter(b => spendingCats.includes(b.category) && !isFromCreditAccount(b)).reduce((s, b) => s + getAmt(b), 0);
-    const investments = bills.filter(b => b.category === "Investments").reduce((s, b) => s + getAmt(b), 0);
-    return startBalances + income - savings - cashSpent - investments;
-}
-
-function updatePaidLabels() {
-    const category = els.billCategory.value;
-    const type = els.billType.value;
-    const amountLabel = document.getElementById("paidAmountLabel");
-    const dateLabel = document.getElementById("paidDateLabel");
-    const amountHelpIcon = document.getElementById("paidAmountHelpIcon");
-    const dateHelpIcon = document.getElementById("paidDateHelpIcon");
-
-    let amountText = "New/Paid Amount";
-    let dateText = "New/Paid Date";
-    let amountHelp = "Enter a New/Paid Amount if the actual paid amount differs from the planned Amount.";
-    let dateHelp = "Enter a New/Paid Date if the actual payment date differs from the original Due Date.";
-
-    if (category === "Income") {
-        if (type === "payment") {
-            amountText = "New/Received Amount";
-            amountHelp = "Enter a New/Received Amount if the actual received amount differs from the planned Amount.";
-        } else {
-            amountText = "New/Returned Amount";
-            amountHelp = "Enter a New/Returned Amount if the actual returned amount differs from the planned Amount.";
-        }
-        dateText = "New/Actual Date";
-        dateHelp = "Enter the actual date if it differs from the original Due Date.";
-    } else if (category === "Savings") {
-        if (type === "payment") {
-            amountText = "New/Saved Amount";
-            amountHelp = "Enter a New/Saved Amount if the actual saved amount differs from the planned Amount.";
-        } else {
-            amountText = "New/Withdrawn Amount";
-            amountHelp = "Enter a New/Withdrawn Amount if the actual withdrawn amount differs from the planned Amount.";
-        }
-        dateText = "New/Actual Date";
-        dateHelp = "Enter the actual date if it differs from the original Due Date.";
-    } else if (type === "refund") {
-        amountText = "New/Received Amount";
-        dateText = "New/Actual Date";
-        amountHelp = "Enter a New/Received Amount if the actual received amount differs from the planned Amount.";
-        dateHelp = "Enter the actual date if it differs from the original Due Date.";
-    }
-
-    if (amountLabel) amountLabel.textContent = amountText;
-    if (dateLabel) dateLabel.textContent = dateText;
-    if (amountHelpIcon) amountHelpIcon.setAttribute("data-help-title", `💰 ${amountText}`);
-    if (amountHelpIcon) amountHelpIcon.setAttribute("data-help", amountHelp);
-    if (dateHelpIcon) dateHelpIcon.setAttribute("data-help-title", `🗓️ ${dateText}`);
-    if (dateHelpIcon) dateHelpIcon.setAttribute("data-help", dateHelp);
-}
-
-function renderPriorityOptions() {
-    const priorityNames = Array.isArray(data.priorityNames) && data.priorityNames.some(name => name.trim())
-        ? data.priorityNames
-        : defaultData.priorityNames;
-    els.billPriority.innerHTML = `
-        <option value="">Select priority</option>
-        ${priorityNames
-            .map((priority, index) => `<option value="${index}">${escapeHtml(priority || defaultData.priorityNames[index] || `Priority ${index + 1}`)}</option>`)
-            .join("")}
-    `;
-}
-
-function getAccountOptions(category, type, field) {
-    const none = `<option value="">Select account</option>`;
-    const missing = `<option value="">Add accounts in Settings</option>`;
-    let allowed = [];
-
-    if (category === "Income") {
-        if (field === "from") allowed = type === "payment" ? [] : ["bank", "cash"];
-        if (field === "to") allowed = type === "payment" ? ["bank", "cash"] : [];
-    } else if (category === "Savings") {
-        if (field === "from") allowed = type === "payment" ? ["bank", "cash"] : ["savings"];
-        if (field === "to") allowed = type === "payment" ? ["savings"] : ["bank", "cash"];
-    } else if (category === "Debt Payments") {
-        if (field === "from") allowed = type === "payment" ? ["bank", "cash"] : ["credit"];
-        if (field === "to") allowed = type === "payment" ? ["credit"] : ["bank", "cash"];
-    } else if (category === "Investments") {
-        if (field === "from") allowed = type === "payment" ? ["bank", "cash"] : ["investment"];
-        if (field === "to") allowed = type === "payment" ? ["investment"] : ["bank", "cash"];
-    } else if (category === "Transfers") {
-        allowed = ["bank", "cash", "credit"];
-    } else {
-        if (field === "from") allowed = type === "payment" ? ["bank", "cash", "credit"] : [];
-        if (field === "to") allowed = type === "payment" ? [] : ["bank", "cash", "credit"];
-    }
-
-    if (allowed.length === 0) return `<option value="">Select account</option>`;
-
-    const matching = data.accounts ? data.accounts.filter(a => allowed.includes(a.type)) : [];
-
-    if (matching.length === 0) return missing;
-
-    const opts = matching.map(a => {
-        const emoji = window._ACCOUNT_EMOJIS[a.type] || "🏦";
-        return `<option value="${a.id}">${emoji} ${escapeHtml(a.name)}</option>`;
-    }).join("");
-
-    return none + opts;
-}
-
-function updateTypeOptions(forceType = null) {
-    const category = els.billCategory.value;
-    if (category === "Transfers") openTransfersInfoModal();
-    if (category === "Investments") openInvestmentsInfoModal();
-    const currentType = forceType || els.billType.value;
-    const priorityWrap = document.getElementById("billPriorityWrap");
-    let options = "";
-
-    if (!category) {
-        els.billType.innerHTML = `<option value="">Select category first</option>`;
-        els.billType.disabled = true;
-        els.billPriority.innerHTML = `<option value="">Select category first</option>`;
-        els.billPriority.disabled = true;
-        els.billPriority.required = false;
-        if (priorityWrap) priorityWrap.style.display = "";
-        return;
-    }
-
-    els.billType.disabled = false;
-
-    if (category === "Income") {
-        options = `<option value="">Select type</option>
-                   <option value="payment">Received</option>
-                   <option value="refund">Returned</option>`;
-        els.billType.innerHTML = options;
-        if (currentType) els.billType.value = currentType;
-        const selectedType = els.billType.value;
-        if (selectedType === "payment") {
-            if (priorityWrap) priorityWrap.style.display = "none";
-            els.billPriority.required = false;
-            els.billPriority.value = "";
-        } else if (selectedType === "refund") {
-            renderPriorityOptions();
-            els.billPriority.disabled = false;
-            els.billPriority.required = true;
-            if (priorityWrap) priorityWrap.style.display = "";
-        } else {
-            els.billPriority.innerHTML = `<option value="">Select type first</option>`;
-            els.billPriority.disabled = true;
-            els.billPriority.required = false;
-            if (priorityWrap) priorityWrap.style.display = "";
-        }
-    } else {
-        if (category === "Savings") {
-            options = `<option value="">Select type</option>
-                       <option value="payment">Deposit</option>
-                       <option value="refund">Withdrawal</option>`;
-        } else if (category === "Investments") {
-            options = `<option value="">Select type</option>
-                       <option value="payment">Deposit</option>
-                       <option value="refund">Withdrawal</option>`;
-        } else {
-            options = `<option value="">Select type</option>
-                       <option value="payment">Payment</option>
-                       <option value="refund">Refund</option>`;
-        }
-        els.billType.innerHTML = options;
-        if (currentType) els.billType.value = currentType;
-        renderPriorityOptions();
-        els.billPriority.disabled = false;
-        els.billPriority.required = true;
-        if (priorityWrap) priorityWrap.style.display = "";
-    }
-
-    const billNameWrap = els.billName.closest("label");
-    const billTypeWrap = els.billType.closest("label");
-
-    if (category === "Transfers") {
-        if (billNameWrap) billNameWrap.style.display = "none";
-        if (billTypeWrap) billTypeWrap.style.display = "none";
-        els.billType.value = "payment";
-        const fromEl = document.getElementById("billFrom");
-        const toEl = document.getElementById("billTo");
-        const fromWrap = document.getElementById("billFromWrap");
-        const toWrap = document.getElementById("billToWrap");
-        if (fromEl) fromEl.innerHTML = getAccountOptions("Transfers", "payment", "from");
-        if (toEl) toEl.innerHTML = getAccountOptions("Transfers", "payment", "to");
-        if (fromEl) fromEl._allOptions = null;
-        if (toEl) toEl._allOptions = null;
-        if (fromWrap) fromWrap.style.display = "";
-        if (toWrap) toWrap.style.display = "";
-        filterAccountDropdowns();
-        return;
-    } else {
-        if (billNameWrap) billNameWrap.style.display = "";
-        if (billTypeWrap) billTypeWrap.style.display = "";
-    }
-
-    const selectedType = els.billType.value;
-    const fromEl = document.getElementById("billFrom");
-    const toEl = document.getElementById("billTo");
-    const fromWrap = document.getElementById("billFromWrap");
-    const toWrap = document.getElementById("billToWrap");
-    if (fromEl && toEl) {
-        fromEl.innerHTML = getAccountOptions(category, selectedType, "from");
-        toEl.innerHTML = getAccountOptions(category, selectedType, "to");
-        const fromIsHidden = fromEl.options.length === 0 || (fromEl.options.length === 1 && fromEl.options[0].value === "" && fromEl.options[0].text === "Select account");
-        const toIsHidden = toEl.options.length === 0 || (toEl.options.length === 1 && toEl.options[0].value === "" && toEl.options[0].text === "Select account");
-        if (fromWrap) fromWrap.style.display = (category && selectedType && !fromIsHidden) ? "" : "none";
-        if (toWrap) toWrap.style.display = (category && selectedType && !toIsHidden) ? "" : "none";
-        filterAccountDropdowns();
-    }
-}
-
-function filterAccountDropdowns() {
-    const fromEl = document.getElementById("billFrom");
-    const toEl = document.getElementById("billTo");
-    if (!fromEl || !toEl) return;
-
-    fromEl._allOptions = Array.from(fromEl.options).map(o => ({ value: o.value, text: o.text }));
-    toEl._allOptions = Array.from(toEl.options).map(o => ({ value: o.value, text: o.text }));
-
-    const fromVal = fromEl.value;
-    const toVal = toEl.value;
-
-    toEl.innerHTML = toEl._allOptions
-        .filter(o => o.value === "" || o.value !== fromVal)
-        .map(o => `<option value="${o.value}">${o.text}</option>`).join("");
-    toEl.value = toVal !== fromVal ? toVal : "";
-
-    fromEl.innerHTML = fromEl._allOptions
-        .filter(o => o.value === "" || o.value !== toVal)
-        .map(o => `<option value="${o.value}">${o.text}</option>`).join("");
-    fromEl.value = fromVal !== toVal ? fromVal : "";
-}
-
-function updateDebtPaymentAccounts() {
-    const category = els.billCategory.value;
-    const type = els.billType.value;
-    const debtName = els.billName.value;
-    const fromWrap = document.getElementById("billFromWrap");
-    const toWrap = document.getElementById("billToWrap");
-    const fromEl = document.getElementById("billFrom");
-    const toEl = document.getElementById("billTo");
-
-    if (category !== "Debt Payments") return;
-    if (!type || !debtName) {
-        if (fromWrap) fromWrap.style.display = "none";
-        if (toWrap) toWrap.style.display = "none";
-        return;
-    }
-
-    const debt = (data.debts || []).find(d => d.name === debtName);
-
-    if (!debt) {
-        if (fromWrap) fromWrap.style.display = "none";
-        if (toWrap) toWrap.style.display = "none";
-        return;
-    }
-
-    const linkedAcc = debt.linkedAccountId
-        ? (data.accounts || []).find(a => a.id === debt.linkedAccountId)
-        : null;
-
-    if (debt.type === "credit_card" && linkedAcc) {
-        if (type === "payment") {
-            const fromOpts = (data.accounts || [])
-                .filter(a => ["bank", "cash"].includes(a.type))
-                .map(a => `<option value="${a.id}">${window._ACCOUNT_EMOJIS[a.type] || "🏦"} ${escapeHtml(a.name)}</option>`)
-                .join("");
-            fromEl.innerHTML = `<option value="">Select account</option>` + fromOpts;
-            fromWrap.style.display = "";
-            toEl.innerHTML = `<option value="${linkedAcc.id}">💳 ${escapeHtml(linkedAcc.name)}</option>`;
-            toEl.value = linkedAcc.id;
-            toWrap.style.display = "";
-        } else {
-            fromEl.innerHTML = `<option value="${linkedAcc.id}">💳 ${escapeHtml(linkedAcc.name)}</option>`;
-            fromEl.value = linkedAcc.id;
-            fromWrap.style.display = "";
-            const toOpts = (data.accounts || [])
-                .filter(a => ["bank", "cash"].includes(a.type))
-                .map(a => `<option value="${a.id}">${window._ACCOUNT_EMOJIS[a.type] || "🏦"} ${escapeHtml(a.name)}</option>`)
-                .join("");
-            toEl.innerHTML = `<option value="">Select account</option>` + toOpts;
-            toWrap.style.display = "";
-        }
-    } else {
-        if (type === "payment") {
-            fromEl.innerHTML = getAccountOptions("Bills", "payment", "from");
-            fromWrap.style.display = "";
-            if (toWrap) toWrap.style.display = "none";
-        } else {
-            if (fromWrap) fromWrap.style.display = "none";
-            toEl.innerHTML = getAccountOptions("Bills", "refund", "to");
-            toWrap.style.display = "";
-        }
-    }
-}
-
-function updateSaveAndMarkBtn() {
-    if (els.editingId.value) return;
-    const category = els.billCategory.value;
-    const isRefund = els.billType.value === "refund";
-    const saveAndPaidBtn = document.getElementById("saveAndPaidBtn");
-    if (!saveAndPaidBtn) return;
-    if (category === "Income") {
-        saveAndPaidBtn.textContent = isRefund ? "Save & Mark Returned" : "Save & Mark Received";
-    } else if (category === "Savings") {
-        saveAndPaidBtn.textContent = isRefund ? "Save & Mark Withdrawn" : "Save & Mark Saved";
-    } else if (category === "Investments") {
-        saveAndPaidBtn.textContent = isRefund ? "Save & Mark Withdrawn" : "Save & Mark Invested";
-    } else if (category === "Transfers") {
-        saveAndPaidBtn.textContent = "Save & Mark Done";
-    } else {
-        saveAndPaidBtn.textContent = isRefund ? "Save & Mark Refunded" : "Save & Mark Paid";
-    }
+    return bill.type === "refund" ? "Unreceived" : "Unpaid";
 }
 
 function getMarkPaidLabel(bill) {
-    if (bill.type === "refund") {
-        if (bill.category === "Savings") return "Mark Withdrawn";
-        if (bill.category === "Investments") return "Mark Withdrawn";
-        return "Mark Returned";
-    }
-    if (bill.category === "Income") return "Mark Received";
-    if (bill.category === "Savings") return "Mark Saved";
-    if (bill.category === "Investments") return "Mark Invested";
-    return "Mark Paid";
+    return bill.type === "refund" ? "Mark Received" : "Mark Paid";
 }
 
 function getMarkUnpaidLabel(bill) {
-    if (bill.type === "refund") {
-        if (bill.category === "Savings") return "Mark Not Withdrawn";
-        if (bill.category === "Investments") return "Mark Not Withdrawn";
-        return "Mark Not Returned";
-    }
-    if (bill.category === "Income") return "Mark Not Received";
-    if (bill.category === "Savings") return "Mark Not Saved";
-    if (bill.category === "Investments") return "Mark Not Invested";
-    return "Mark Unpaid";
+    return bill.type === "refund" ? "Mark Unreceived" : "Mark Unpaid";
 }
 
 function togglePaid(id) {
@@ -2613,18 +2008,11 @@ function renderFilterOptions() {
 
     if (!statusSelect || !prioritySelect || !categorySelect || !monthSelect || !yearSelect) return;
 
-    const savedStatus   = statusSelect.value;
+    const savedStatus = statusSelect.value;
     const savedPriority = prioritySelect.value;
     const savedCategory = categorySelect.value;
-    let savedMonth, savedYear;
-    if (!listFiltersLoaded) {
-        savedMonth = localStorage.getItem("proPaycheckListMonthFilter") || "";
-        savedYear  = localStorage.getItem("proPaycheckListYearFilter")  || "";
-        listFiltersLoaded = true;
-    } else {
-        savedMonth = monthSelect.value;
-        savedYear  = yearSelect.value;
-    }
+    const savedMonth = monthSelect.value;
+    const savedYear = yearSelect.value;
 
     const calSavedStatus = calStatusSelect?.value ?? "";
     const calSavedPriority = calPrioritySelect?.value ?? "";
@@ -2634,8 +2022,8 @@ function renderFilterOptions() {
 
     const statusOptions = `
         <option value="">All Statuses</option>
-        <option value="unpaid">Planned</option>
-        <option value="paid">Done</option>
+        <option value="unpaid">Unpaid</option>
+        <option value="paid">Paid</option>
         <option value="overdue">Overdue</option>
     `;
     statusSelect.innerHTML = statusOptions;
@@ -2651,9 +2039,7 @@ function renderFilterOptions() {
     const categoryOptions = `<option value="">All Categories</option>` +
         data.categories.map(cat =>
             `<option value="${cat}">${cat.toUpperCase()}</option>`
-        ).join("") +
-        `<option value="Investments">INVESTMENTS</option>` +
-        `<option value="Transfers">TRANSFERS</option>`;
+        ).join("");
     categorySelect.innerHTML = categoryOptions;
     if (calCategorySelect) calCategorySelect.innerHTML = categoryOptions;
 
@@ -2668,8 +2054,8 @@ function renderFilterOptions() {
 
     const years = [...new Set(
         data.bills
-            .filter(b => getBillDisplayDate(b))
-            .map(b => parseLocalDate(getBillDisplayDate(b)).getFullYear())
+            .filter(b => b.dueDate)
+            .map(b => parseLocalDate(b.dueDate).getFullYear())
     )].sort();
     const yearOptions = `<option value="">All Years</option>` +
         years.map(y => `<option value="${y}">${y}</option>`).join("");
@@ -2697,14 +2083,11 @@ function renderBills() {
     const categoryFilter = document.getElementById("filterCategory")?.value ?? "";
     const monthFilter = document.getElementById("filterMonth")?.value ?? "";
     const yearFilter = document.getElementById("filterYear")?.value ?? "";
-    localStorage.setItem("proPaycheckListMonthFilter", monthFilter);
-    localStorage.setItem("proPaycheckListYearFilter",  yearFilter);
-    updateFilterStyles();
 
     const filtered = applyBillFilters(data.bills, { statusFilter, priorityFilter, categoryFilter, monthFilter, yearFilter });
 
     if (!filtered.length) {
-        els.billList.innerHTML = `<div class="empty">No transactions here yet. Add your first transaction to get started.</div>`;
+        els.billList.innerHTML = `<div class="empty">No bills here yet. Add your first bill to get started.</div>`;
         return;
     }
 
@@ -2713,13 +2096,13 @@ function renderBills() {
     els.billList.innerHTML = filtered.map(bill => {
         const status = getBillStatus(bill);
         return `
-        <div class="bill-card ${status} ${bill.paid && statusFilter !== "paid" ? "paid-muted" : `category-color-${bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1)}`} ${bill.category === "Income" && bill.type === "payment" ? "priority-border-none" : `priority-border-${Number(bill.priority) + 1}`}">
+        <div class="bill-card ${status} ${bill.paid && statusFilter !== "paid" ? "paid-muted" : `category-color-${Math.max(1, data.categories.indexOf(bill.category) + 1)}`} priority-border-${Number(bill.priority) + 1}">
         <div class="bill-info">
   <div class="bill-meta bill-main-line" style="justify-content:space-between;">
     <span class="bill-title-inline app-tooltip-trigger"><span class="bill-title-text">${escapeHtml(bill.name)}</span><span class="app-tooltip">${data.priorityNames[Number(bill.priority)] || "Priority"}</span></span>
     <span class="bill-amount-wrap">
     <span class="bill-amount">
-        ${bill.type === "refund" ? `<span class="bill-refund-icon ${["Income", "Savings"].includes(bill.category) ? "refund-out" : "refund-in"} app-tooltip-trigger">&#x27A1;<span class="app-tooltip">Refund</span></span>` : ""}
+        ${bill.type === "refund" ? `<span class="bill-refund-icon app-tooltip-trigger">&#x27A1;<span class="app-tooltip">Refund</span></span>` : ""}
         <span class="bill-frequency-icon">
             <span class="app-tooltip-trigger">
                 ${bill.frequency === "one-time" ? "◷" : "↻"}
@@ -2729,7 +2112,7 @@ function renderBills() {
             </span>
         </span>
 
-                <span  >${formatMoney(getBillDisplayAmount(bill))}</span>
+                <span ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${formatMoney(getBillDisplayAmount(bill))}</span>
     </span>
 
     ${bill.actualAmount != null && Number(bill.actualAmount) !== Number(bill.amount)
@@ -2738,7 +2121,6 @@ function renderBills() {
             }
 </span>
   </div>
-  ${(bill.fromAccount || bill.toAccount) ? `<div class="bill-accounts-row">${bill.fromAccount ? `<span class="bill-account-tag">⬆️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.fromAccount)?.name||'')}</span>` : ''}${bill.fromAccount && bill.toAccount ? ` → ` : ''}${bill.toAccount ? `<span class="bill-account-tag">⬇️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.toAccount)?.name||'')}</span>` : ''}</div>` : ''}
   <div class="bill-details-row">
         <div class="bill-date-wrap"><span class="pill app-tooltip-trigger" style="display:inline-flex; align-items:center; gap:6px;"><svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; opacity:0.4;"><rect x="2" y="5" width="16" height="13" rx="2"/><line x1="2" y1="9" x2="18" y2="9"/><line x1="7" y1="3" x2="7" y2="7"/><line x1="13" y1="3" x2="13" y2="7"/></svg>${formatDisplayDate(parseLocalDate(getBillDisplayDate(bill)))}<span class="app-tooltip">${getBillDateTooltip(bill)}</span></span></div>
     <div class="bill-status-wrap"><span class="bill-countdown">${getDaysLabel(bill)}</span></div>
@@ -2780,12 +2162,16 @@ function renderPageHeader(section) {
     if (section === "list") {
         summaryGrid.innerHTML = `
             <div class="summary-card" data-stat="total">
-                <div class="label">Current Balance</div>
+                <div class="label">Total bills</div>
                 <div class="value" id="totalBills">$0.00</div>
             </div>
             <div class="summary-card" data-stat="paid">
-                <div class="label">Projected Balance</div>
+                <div class="label">Paid</div>
                 <div class="value" id="paidBills">$0.00</div>
+            </div>
+            <div class="summary-card" data-stat="unpaid">
+                <div class="label">Unpaid</div>
+                <div class="value" id="unpaidBills">$0.00</div>
             </div>
             <div class="summary-card" data-stat="overdue">
                 <div class="label">Overdue</div>
@@ -2801,12 +2187,16 @@ function renderPageHeader(section) {
     } else if (section === "calendar") {
         summaryGrid.innerHTML = `
             <div class="summary-card" data-stat="total">
-                <div class="label">Current Balance</div>
+                <div class="label">Total bills</div>
                 <div class="value" id="calTotalBills">$0.00</div>
             </div>
             <div class="summary-card" data-stat="paid">
-                <div class="label">Projected Balance</div>
+                <div class="label">Paid</div>
                 <div class="value" id="calPaidBills">$0.00</div>
+            </div>
+            <div class="summary-card" data-stat="unpaid">
+                <div class="label">Unpaid</div>
+                <div class="value" id="calUnpaidBills">$0.00</div>
             </div>
             <div class="summary-card" data-stat="overdue">
                 <div class="label">Overdue</div>
@@ -2819,9 +2209,6 @@ function renderPageHeader(section) {
         `;
         renderCalSummaryCards();
         renderCalProgressBar();
-    } else if (section === "paycheck") {
-        renderPaycheckHeader();
-  
     } else if (section === "monthly") {
         const year = currentCalendarDate.getFullYear();
         const month = currentCalendarDate.getMonth();
@@ -2840,32 +2227,10 @@ function renderPageHeader(section) {
         }).join("");
         summaryGrid.innerHTML = cards;
 
-        const _mk = `${year}-${String(month + 1).padStart(2, "0")}`;
-        const rollover = calcAutoRollover(new Date(year, month, 1));
-        const spendingCats = data.categories.slice(2);
-        const segBarColors = ["var(--yellow)", "var(--orange)", "var(--pink)", "var(--pink)"];
-
-        const incomeRec = monthBills.filter(b => b.category === data.categories[0] && b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
-        const savingsRec = monthBills.filter(b => b.category === data.categories[1] && b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
-        const cashSpent = monthBills.filter(b => spendingCats.includes(b.category) && b.paid && !isFromCreditAccount(b)).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
-        const investmentsRec = monthBills.filter(b => b.category === "Investments" && b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
-        const totalBase = rollover + incomeRec;
-        const amountLeft = totalBase - savingsRec - cashSpent - investmentsRec;
-
-        const spendingSegs = spendingCats.map((cat, i) => ({
-            color: segBarColors[i] || "var(--peach)",
-            amount: monthBills.filter(b => b.category === cat && b.paid && !isFromCreditAccount(b)).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0)
-        }));
-
-        const allSegs = [
-            { color: "var(--mint)", amount: Math.max(amountLeft, 0) },
-            { color: "var(--purple)", amount: savingsRec },
-            ...spendingSegs
-        ].filter(s => s.amount > 0);
-
-        const segHtml = totalBase > 0
-            ? allSegs.map(s => `<div class="ipb-segment" style="width:${Math.min((s.amount / totalBase) * 100, 100).toFixed(1)}%;background:${s.color};"></div>`).join("")
-            : "";
+        const allPayments = monthBills.filter(b => b.type !== "refund");
+        const totalExp = sum(allPayments);
+        const totalPaid = sum(allPayments.filter(b => b.paid));
+        const pct = totalExp > 0 ? Math.min(Math.round((totalPaid / totalExp) * 100), 100) : 0;
 
         const existingIpb = document.getElementById("insightsProgressBar");
         if (existingIpb) existingIpb.remove();
@@ -2874,23 +2239,11 @@ function renderPageHeader(section) {
         const ipb = document.createElement("div");
         ipb.id = "insightsProgressBar";
         ipb.className = "insights-progress-bar visible";
-        const segTextColors = ["var(--yellow-text)", "var(--orange-text)", "var(--pink-text)", "var(--pink-text)"];
-        const labelSegs = [
-            { color: "var(--purple-text)", label: data.categories[1], amount: savingsRec },
-            ...spendingCats.map((cat, i) => ({ color: segTextColors[i] || "var(--text)", label: cat, amount: spendingSegs[i].amount })),
-            { color: "var(--mint-text)", label: "left to spend", amount: Math.max(amountLeft, 0) }
-        ].filter(s => s.amount > 0);
-
-        const rightLabels = labelSegs.filter(s => s.label !== "left to spend")
-            .map(s => `<span style="color:${s.color};font-size:10px;white-space:nowrap;">${s.label === "Debt Payments" ? "Debts" : s.label} <strong>${formatMoney(s.amount)}</strong></span>`)
-            .join("&nbsp;&nbsp;&nbsp;");
-        const leftLabel = labelSegs.find(s => s.label === "left to spend");
-        const leftHtml = leftLabel ? `<span style="color:var(--mint-text);font-size:12px;white-space:nowrap;"><span class="help-icon" data-help-title="Left to Spend — How it works" data-help="This is the amount of cash available after receiving income, setting aside savings, investing, and paying cash/debit expenses.&lt;br&gt;&lt;br&gt;Any payment made with a &lt;strong&gt;credit card&lt;/strong&gt; is &lt;strong&gt;not deducted&lt;/strong&gt; from this amount — it appears in your category totals but doesn't affect your available cash.&lt;br&gt;&lt;br&gt;Formula: Rollover + Income received − Savings − Investments − Cash expenses" style="cursor:pointer;margin-right:4px;">📊</span>Left to spend <strong>${formatMoney(leftLabel.amount)}</strong></span>` : "";
-
         ipb.innerHTML = `
-            <div class="ipb-track"><div class="ipb-segments">${segHtml || '<div style="width:100%;height:100%;background:var(--bar-bg);"></div>'}</div></div>
-            <div class="ipb-labels-row" style="display:flex;justify-content:space-between;width:100%;margin-top:3px;gap:8px;">
-                ${leftHtml}<span class="ipb-right-labels">${rightLabels}</span>
+            <div class="ipb-track"><div class="ipb-fill" style="width:${pct}%"></div></div>
+            <div class="ipb-meta">
+                <span class="ipb-meta-left">paid <strong class="ipb-paid-amt">${formatMoney(totalPaid)}</strong> of <span class="ipb-of">${formatMoney(totalExp)}</span></span>
+                <span class="ipb-meta-right">${pct}% paid</span>
             </div>`;
         document.querySelector(".summary-grid-wrap")?.appendChild(ipb);
         document.querySelector(".summary-grid-top")?.classList.add("has-progress-bar");
@@ -2911,57 +2264,29 @@ function renderPageHeader(section) {
         }).join("");
         summaryGrid.innerHTML = cards;
 
+        const allPayments = yearBills.filter(b => b.type !== "refund");
+        const totalExp = sum(allPayments);
+        const totalPaid = sum(allPayments.filter(b => b.paid));
+        const pct = totalExp > 0 ? Math.min(Math.round((totalPaid / totalExp) * 100), 100) : 0;
+
         const existingIpb = document.getElementById("insightsProgressBar");
         if (existingIpb) existingIpb.remove();
         document.querySelector(".summary-grid-top")?.classList.remove("has-progress-bar");
-    } else if (section === "accounts") {
-        summaryGrid.innerHTML = `
-            <div class="summary-card" data-stat="cash">
-                <div class="label">Cash</div>
-                <div class="value" id="accSumCash">$0.00</div>
-            </div>
-            <div class="summary-card" data-stat="total">
-                <div class="label">Bank</div>
-                <div class="value" id="accSumBank">$0.00</div>
-            </div>
-            <div class="summary-card" data-stat="savings">
-                <div class="label">Savings</div>
-                <div class="value" id="accSumSavings">$0.00</div>
-            </div>
-            <div class="summary-card" data-stat="investments">
-                <div class="label">Investments</div>
-                <div class="value" id="accSumInvestments">$0.00</div>
-            </div>
-            <div class="summary-card" data-stat="debt">
-                <div class="label">Credit Debt</div>
-                <div class="value" id="accSumDebt">$0.00</div>
-            </div>
-        `;
-        renderAccountsSummaryCards();
+
+        const ipb = document.createElement("div");
+        ipb.id = "insightsProgressBar";
+        ipb.className = "insights-progress-bar visible";
+        ipb.innerHTML = `
+            <div class="ipb-track"><div class="ipb-fill" style="width:${pct}%"></div></div>
+            <div class="ipb-meta">
+                <span class="ipb-meta-left">paid <strong class="ipb-paid-amt">${formatMoney(totalPaid)}</strong> of <span class="ipb-of">${formatMoney(totalExp)}</span></span>
+                <span class="ipb-meta-right">${pct}% paid</span>
+            </div>`;
+        document.querySelector(".summary-grid-wrap")?.appendChild(ipb);
+        document.querySelector(".summary-grid-top")?.classList.add("has-progress-bar");
     } else {
         summaryGrid.innerHTML = "";
     }
-}
-
-function renderAccountsSummaryCards() {
-    const accounts = data.accounts || [];
-    let totalCash = 0, totalBank = 0, totalSavings = 0, totalInvestments = 0, totalDebt = 0;
-
-    for (const acc of accounts) {
-        const cur = calcAccountBalance(acc.id, "", "").currentBalance;
-        if (acc.type === "cash")       totalCash        += cur;
-        if (acc.type === "bank")       totalBank        += cur;
-        if (acc.type === "savings")    totalSavings     += cur;
-        if (acc.type === "investment") totalInvestments += cur;
-        if (acc.type === "credit" && cur < 0) totalDebt += Math.abs(cur);
-    }
-
-    const el = id => document.getElementById(id);
-    if (el("accSumCash"))        el("accSumCash").textContent        = formatMoney(totalCash);
-    if (el("accSumBank"))        el("accSumBank").textContent        = formatMoney(totalBank);
-    if (el("accSumSavings"))     el("accSumSavings").textContent     = formatMoney(totalSavings);
-    if (el("accSumInvestments")) el("accSumInvestments").textContent = formatMoney(totalInvestments);
-    if (el("accSumDebt"))        el("accSumDebt").textContent        = formatMoney(totalDebt);
 }
 
 function renderCalProgressBar() {
@@ -2971,36 +2296,23 @@ function renderCalProgressBar() {
 
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
-    const bills = data.bills.filter(bill => {
+    const monthBills = data.bills.filter(bill => {
         const date = parseLocalDate(getBillDisplayDate(bill));
         return date.getFullYear() === year && date.getMonth() === month;
     });
-
-    function getAmount(b) { return parseFloat(b.actualAmount ?? b.amount) || 0; }
-
-    const incomeReceived = bills.filter(b => b.category === "Income" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const incomeReturned = bills.filter(b => b.category === "Income" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesPaid = bills.filter(b => ["Bills", "Expenses", "Debt Payments"].includes(b.category) && b.type === "payment" && b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const expensesRefunded = bills.filter(b => ["Bills", "Expenses", "Debt Payments"].includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsDone = bills.filter(b => b.category === "Savings" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsWithdrawn = bills.filter(b => b.category === "Savings" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsDone = bills.filter(b => b.category === "Investments" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawn = bills.filter(b => b.category === "Investments" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const netIncome = incomeReceived - incomeReturned;
-    const totalSpent = expensesPaid - expensesRefunded + savingsDone - savingsWithdrawn + investmentsDone - investmentsWithdrawn;
-    const pct = incomeReceived > 0 ? Math.round((totalSpent / incomeReceived) * 100) : 0;
-    const barWidth = Math.min(pct, 100);
-    const isOver = pct > 100;
+    const allPayments = monthBills.filter(b => b.type !== "refund");
+    const totalExp = sum(allPayments);
+    const totalPaid = sum(allPayments.filter(b => b.paid));
+    const pct = totalExp > 0 ? Math.min(Math.round((totalPaid / totalExp) * 100), 100) : 0;
 
     const ipb = document.createElement("div");
     ipb.id = "insightsProgressBar";
     ipb.className = "insights-progress-bar visible";
     ipb.innerHTML = `
-        <div class="ipb-track"><div class="ipb-fill${isOver ? " ipb-over" : ""}" style="width:${barWidth}%"></div></div>
+        <div class="ipb-track"><div class="ipb-fill" style="width:${pct}%"></div></div>
         <div class="ipb-meta">
-            <span class="ipb-meta-left">spent <strong class="ipb-paid-amt" style="color:var(--orange-text);">${formatMoney(totalSpent)}</strong> of <span class="ipb-of" style="color:var(--mint-text);">${formatMoney(netIncome)}</span> received</span>
-            <span class="ipb-meta-right">${pct}% spent</span>
+            <span class="ipb-meta-left">paid <strong class="ipb-paid-amt">${formatMoney(totalPaid)}</strong> of <span class="ipb-of">${formatMoney(totalExp)}</span></span>
+            <span class="ipb-meta-right">${pct}% paid</span>
         </div>`;
     document.querySelector(".summary-grid-wrap")?.appendChild(ipb);
     document.querySelector(".summary-grid-top")?.classList.add("has-progress-bar");
@@ -3009,48 +2321,24 @@ function renderCalProgressBar() {
 function renderCalSummaryCards() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
-    const bills = data.bills.filter(bill => {
+    const monthBills = data.bills.filter(bill => {
         const date = parseLocalDate(getBillDisplayDate(bill));
         return date.getFullYear() === year && date.getMonth() === month;
     });
-
-    const incomeCategories = ["Income"];
-    const expenseCategories = ["Bills", "Expenses", "Debt Payments"];
-    const savingsCategories = ["Savings"];
-
-    function getAmount(b) { return parseFloat(b.actualAmount ?? b.amount) || 0; }
-
-    const incomeDone = bills.filter(b => incomeCategories.includes(b.category) && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const incomeReturned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesDone = bills.filter(b => expenseCategories.includes(b.category) && b.type === "payment" && b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const expensesRefunded = bills.filter(b => expenseCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsDone = bills.filter(b => savingsCategories.includes(b.category) && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsWithdrawn = bills.filter(b => savingsCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsDone = bills.filter(b => b.category === "Investments" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawn = bills.filter(b => b.category === "Investments" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const currentBalance = incomeDone - incomeReturned - expensesDone + expensesRefunded - savingsDone + savingsWithdrawn - investmentsDone + investmentsWithdrawn;
-
-    const incomePlanned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const incomeReturnedPlanned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesPlanned = bills.filter(b => expenseCategories.includes(b.category) && b.type === "payment" && !b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const expensesRefundedPlanned = bills.filter(b => expenseCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsPlanned = bills.filter(b => savingsCategories.includes(b.category) && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsWithdrawnPlanned = bills.filter(b => savingsCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsPlanned = bills.filter(b => b.category === "Investments" && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawnPlanned = bills.filter(b => b.category === "Investments" && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const projectedBalance = currentBalance + incomePlanned - incomeReturnedPlanned - expensesPlanned + expensesRefundedPlanned - savingsPlanned + savingsWithdrawnPlanned - investmentsPlanned + investmentsWithdrawnPlanned;
-
-    const overdue = bills.filter(b => getBillStatus(b) === "overdue").length;
+    const total = sum(monthBills);
+    const paid = sum(monthBills.filter(b => b.paid));
+    const unpaid = sum(monthBills.filter(b => !b.paid));
+    const overdue = monthBills.filter(b => getBillStatus(b) === "overdue").length;
 
     const totalEl = document.getElementById("calTotalBills");
     const paidEl = document.getElementById("calPaidBills");
+    const unpaidEl = document.getElementById("calUnpaidBills");
     const overdueEl = document.getElementById("calOverdueBills");
     const todayEl = document.getElementById("calTodayText");
 
-    if (totalEl) totalEl.textContent = formatMoney(currentBalance);
-    if (paidEl) paidEl.textContent = formatMoney(projectedBalance);
+    if (totalEl) totalEl.textContent = formatMoney(total);
+    if (paidEl) paidEl.textContent = formatMoney(paid);
+    if (unpaidEl) unpaidEl.textContent = formatMoney(unpaid);
     if (overdueEl) {
         overdueEl.textContent = overdue;
         const overdueCard = overdueEl.closest(".summary-card");
@@ -3077,28 +2365,15 @@ function renderListProgressBar() {
     if (existingIpb) existingIpb.remove();
     document.querySelector(".summary-grid-top")?.classList.remove("has-progress-bar");
 
-    const monthFilter = document.getElementById("filterMonth")?.value ?? "";
-    const yearFilter = document.getElementById("filterYear")?.value ?? "";
-    const bills = applyBillFilters(data.bills, { statusFilter: "", priorityFilter: "", categoryFilter: "", monthFilter, yearFilter });
-
-    function getAmount(b) { return parseFloat(b.actualAmount ?? b.amount) || 0; }
-
-    const incomeReceived = bills.filter(b => b.category === "Income" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesPaid = bills.filter(b => ["Bills", "Expenses", "Debt Payments"].includes(b.category) && b.type === "payment" && b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const savingsDone = bills.filter(b => b.category === "Savings" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsDone = bills.filter(b => b.category === "Investments" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawn = bills.filter(b => b.category === "Investments" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const totalSpent = expensesPaid + savingsDone + investmentsDone - investmentsWithdrawn;
-    const pct = incomeReceived > 0 ? Math.round((totalSpent / incomeReceived) * 100) : 0;
+    const { totalExp, totalPaid } = getListTotals();
+    const pct = totalExp > 0 ? Math.round((totalPaid / totalExp) * 100) : 0;
     const barWidth = Math.min(pct, 100);
-    const isOver = pct > 100;
 
     const html = `
-        <div class="ipb-track"><div class="ipb-fill${isOver ? " ipb-over" : ""}" style="width:${barWidth}%"></div></div>
+        <div class="ipb-track"><div class="ipb-fill" style="width:${barWidth}%"></div></div>
         <div class="ipb-meta">
-            <span class="ipb-meta-left">spent <strong class="ipb-paid-amt" style="color:var(--orange-text);">${formatMoney(totalSpent)}</strong> of <span class="ipb-of" style="color:var(--mint-text);">${formatMoney(incomeReceived)}</span> received</span>
-            <span class="ipb-meta-right">${pct}% spent</span>
+            <span class="ipb-meta-left">paid <strong class="ipb-paid-amt">${formatMoney(totalPaid)}</strong> of <span class="ipb-of">${formatMoney(totalExp)}</span></span>
+            <span class="ipb-meta-right">${pct}% paid</span>
         </div>`;
 
     let ipb = document.getElementById("insightsProgressBar");
@@ -3115,52 +2390,26 @@ function renderListProgressBar() {
 }
 
 function renderSummaryCards() {
-    const monthFilter = document.getElementById("filterMonth")?.value ?? "";
-    const yearFilter = document.getElementById("filterYear")?.value ?? "";
-    const bills = applyBillFilters(data.bills, { statusFilter: "", priorityFilter: "", categoryFilter: "", monthFilter, yearFilter });
-
-    const incomeCategories = ["Income"];
-    const expenseCategories = ["Bills", "Expenses", "Debt Payments"];
-    const savingsCategories = ["Savings"];
-
-    function getAmount(b) { return parseFloat(b.actualAmount ?? b.amount) || 0; }
-
-    // Current Balance = income received - expenses paid - savings deposited + savings withdrawn
-    const incomeDone = bills.filter(b => incomeCategories.includes(b.category) && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const incomeReturned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesDone = bills.filter(b => expenseCategories.includes(b.category) && b.type === "payment" && b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const expensesRefunded = bills.filter(b => expenseCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsDone = bills.filter(b => savingsCategories.includes(b.category) && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsWithdrawn = bills.filter(b => savingsCategories.includes(b.category) && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsDone = bills.filter(b => b.category === "Investments" && b.type === "payment" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawn = bills.filter(b => b.category === "Investments" && b.type === "refund" && b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const currentBalance = incomeDone - incomeReturned - expensesDone + expensesRefunded - savingsDone + savingsWithdrawn - investmentsDone + investmentsWithdrawn;
-
-    // Projected Balance = current balance + income planned - expenses planned - savings planned + savings withdrawals planned
-    const incomePlanned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const incomeReturnedPlanned = bills.filter(b => incomeCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const expensesPlanned = bills.filter(b => expenseCategories.includes(b.category) && b.type === "payment" && !b.paid && !isFromCreditAccount(b)).reduce((s, b) => s + getAmount(b), 0);
-    const expensesRefundedPlanned = bills.filter(b => expenseCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsPlanned = bills.filter(b => savingsCategories.includes(b.category) && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const savingsWithdrawnPlanned = bills.filter(b => savingsCategories.includes(b.category) && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsPlanned = bills.filter(b => b.category === "Investments" && b.type === "payment" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-    const investmentsWithdrawnPlanned = bills.filter(b => b.category === "Investments" && b.type === "refund" && !b.paid).reduce((s, b) => s + getAmount(b), 0);
-
-    const projectedBalance = currentBalance + incomePlanned - incomeReturnedPlanned - expensesPlanned + expensesRefundedPlanned - savingsPlanned + savingsWithdrawnPlanned - investmentsPlanned + investmentsWithdrawnPlanned;
-
-    const overdue = bills.filter(b => getBillStatus(b) === "overdue").length;
+    const monthBills = data.bills;
+    const total = sum(monthBills);
+    const paid = sum(monthBills.filter(b => b.paid));
+    const unpaid = sum(monthBills.filter(b => !b.paid));
+    const overdue = monthBills.filter(b => getBillStatus(b) === "overdue").length;
 
     const totalEl = document.getElementById("totalBills");
     const paidEl = document.getElementById("paidBills");
+    const unpaidEl = document.getElementById("unpaidBills");
     const overdueEl = document.getElementById("overdueBills");
 
-    if (totalEl) totalEl.textContent = formatMoney(currentBalance);
-    if (paidEl) paidEl.textContent = formatMoney(projectedBalance);
+    if (totalEl) totalEl.textContent = formatMoney(total);
+    if (paidEl) paidEl.textContent = formatMoney(paid);
+    if (unpaidEl) unpaidEl.textContent = formatMoney(unpaid);
     if (overdueEl) {
         overdueEl.textContent = overdue;
         const overdueCard = overdueEl.closest(".summary-card");
-        if (overdueCard) overdueCard.classList.toggle("overdue-zero", overdue === 0);
+        if (overdueCard) {
+            overdueCard.classList.toggle("overdue-zero", overdue === 0);
+        }
     }
 
     const todayEl = document.getElementById("todayText");
@@ -3221,18 +2470,17 @@ function renderCalDayPanel(dateString) {
 
     const billCount = bills.length;
     const subLabel = isToday
-        ? `Today · ${billCount} transaction${billCount !== 1 ? "s" : ""}`
-        : `${billCount} transaction${billCount !== 1 ? "s" : ""}`;
+        ? `Today · ${billCount} bill${billCount !== 1 ? "s" : ""}`
+        : `${billCount} bill${billCount !== 1 ? "s" : ""}`;
 
     const billsHtml = bills.length === 0
-        ? `<div class="cal-panel-empty">No transactions this day</div>`
+        ? `<div class="cal-panel-empty">No bills this day</div>`
         : bills.map(bill => {
             const status = getBillStatus(bill);
             const amount = formatMoney(getBillDisplayAmount(bill));
             const priIndex = bill.priority != null ? Number(bill.priority) + 1 : 5;
-            const isIncomeReceived = bill.category === "Income" && bill.type === "payment";
-            const dotColor = isIncomeReceived ? "transparent" : `var(--priority-${priIndex}-color)`;
-            const catIndex = bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1);
+            const dotColor = `var(--priority-${priIndex}-color)`;
+            const catIndex = Math.max(1, data.categories.indexOf(bill.category) + 1);
 
             let btnHtml = "";
             if (status === "paid") {
@@ -3251,10 +2499,9 @@ function renderCalDayPanel(dateString) {
                     <div class="cal-panel-dot" style="background:${dotColor};"></div>
                     <div class="cal-panel-info">
                         <div class="cal-panel-name">${escapeHtml(bill.name)}</div>
-                        ${(bill.fromAccount || bill.toAccount) ? `<div class="bill-accounts-row">${bill.fromAccount ? `<span class="bill-account-tag">⬆️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.fromAccount)?.name||'')}</span>` : ''}${bill.fromAccount && bill.toAccount ? ` → ` : ''}${bill.toAccount ? `<span class="bill-account-tag">⬇️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.toAccount)?.name||'')}</span>` : ''}</div>` : ''}
                         ${bill.notes ? `<div class="cal-panel-notes">${escapeHtml(bill.notes)}</div>` : ""}
                     </div>
-                    <div class="cal-panel-amount">${bill.type === "refund" ? `<span class="bill-refund-icon ${["Income", "Savings"].includes(bill.category) ? "refund-out" : "refund-in"}">&#x27A1;</span>` : ""}<span class="cal-amount-main"><span class="bill-frequency-icon">${bill.frequency === "one-time" ? "◷" : "↻"}</span><span>${amount}</span></span>${bill.actualAmount != null && Number(bill.actualAmount) !== Number(bill.amount) ? `<span class="bill-original-amount">${formatMoney(bill.amount)}</span>` : ""}</div>
+                    <div class="cal-panel-amount">${bill.type === "refund" ? `<span class="bill-refund-icon">&#x27A1;</span>` : ""}<span class="bill-frequency-icon" ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${bill.frequency === "one-time" ? "◷" : "↻"}</span><span ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${amount}</span></div>
                 </div>`;
         }).join("");
 
@@ -3356,9 +2603,9 @@ function renderCalendar() {
     if (calNavPeriod) {
         const periods = [...new Set(
             data.bills
-                .filter(b => getBillDisplayDate(b))
+                .filter(b => b.dueDate)
                 .map(b => {
-                    const d = parseLocalDate(getBillDisplayDate(b));
+                    const d = parseLocalDate(b.dueDate);
                     return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
                 })
         )];
@@ -3449,9 +2696,9 @@ function renderCalendar() {
         sortBills(prevBills);
         cells.push(`<div class="day muted" data-date="${prevDateString}"><div class="day-number">${prevDay}</div>${prevBills.map(bill => {
             const status = getBillStatus(bill);
-            const catIndex = bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1);
+            const catIndex = Math.max(1, data.categories.indexOf(bill.category) + 1);
             const priIndex = Number(bill.priority) + 1;
-            return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar pri-bar-${priIndex}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span><span class="cal-bill-amount"  >${formatMoney(getBillDisplayAmount(bill))}</span></button>`;
+            return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar pri-bar-${priIndex}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span><span class="cal-bill-amount" ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${formatMoney(getBillDisplayAmount(bill))}</span></button>`;
         }).join("")}</div>`);
     }
 
@@ -3472,43 +2719,27 @@ function renderCalendar() {
             const hasOverdue = bills.some(b => getBillStatus(b) === "overdue");
             const overdueClass = hasOverdue ? " overdue-pip" : "";
             const selectedClass = dateString === selectedCalDay ? " selected-day" : "";
-            const today = new Date(); today.setHours(0,0,0,0);
-            const highlightOn = (data.paycheckSettings?.highlightCalendar || "yes") === "yes";
-            const activePaycheck = highlightOn ? (data.paychecks || []).find(pc => {
-                const s = parseLocalDate(pc.startDate); const e = parseLocalDate(pc.endDate);
-                return today >= s && today <= e;
-            }) : null;
-            const paycheckClass = activePaycheck && dateString >= activePaycheck.startDate && dateString <= activePaycheck.endDate ? " paycheck-active" : "";
             const pips = bills.map(b => {
                 const pi = b.priority != null ? Number(b.priority) + 1 : 5;
-                const isIncomeReceived = b.category === "Income" && b.type === "payment";
-                const color = isIncomeReceived ? "var(--mint)" : `var(--priority-${pi}-color)`;
+                const color = `var(--priority-${pi}-color)`;
                 return `<div class="cal-pip" style="background:${b.paid ? "var(--done-text)" : color}; opacity:${b.paid ? "0.45" : "1"};"></div>`;
             }).join("");
             cells.push(`
-              <div class="day${isToday ? " today" : ""}${isWeekend ? " weekend" : ""}${overdueClass}${selectedClass}${paycheckClass}" data-date="${dateString}">
+              <div class="day${isToday ? " today" : ""}${isWeekend ? " weekend" : ""}${overdueClass}${selectedClass}" data-date="${dateString}">
                 <div class="day-number">${day}</div>
                 <div class="cal-pips-row">${pips}</div>
               </div>
             `);
         } else {
-            const highlightOn = (data.paycheckSettings?.highlightCalendar || "yes") === "yes";
-            const activePaycheck = highlightOn ? (data.paychecks || []).find(pc => {
-                const s = parseLocalDate(pc.startDate); const e = parseLocalDate(pc.endDate);
-                const td = new Date(); td.setHours(0,0,0,0);
-                return td >= s && td <= e;
-            }) : null;
-            const paycheckClass = activePaycheck && dateString >= activePaycheck.startDate && dateString <= activePaycheck.endDate ? " paycheck-active" : "";
             cells.push(`
-              <div class="day${isToday ? " today" : ""}${isWeekend ? " weekend" : ""}${paycheckClass}" data-date="${dateString}" ondblclick="openAddBillWithDate('${dateString}')">
+              <div class="day${isToday ? " today" : ""}${isWeekend ? " weekend" : ""}" data-date="${dateString}" ondblclick="openAddBillWithDate('${dateString}')">
                 <div class="day-number">${day}</div>
                 ${bills.map(bill => {
                 const status = getBillStatus(bill);
-                const catIndex = bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1);
+                const catIndex = Math.max(1, data.categories.indexOf(bill.category) + 1);
                 const priIndex = Number(bill.priority) + 1;
-                const barClass = (bill.category === "Income" && bill.type === "payment") ? "pri-bar-none" : `pri-bar-${priIndex}`;
-                return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar ${barClass}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span>
-                <span class="cal-bill-amount"  >${formatMoney(getBillDisplayAmount(bill))}</span>
+                return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar pri-bar-${priIndex}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span>
+                <span class="cal-bill-amount" ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${formatMoney(getBillDisplayAmount(bill))}</span>
                 </button>`;
             }).join("")}
               </div>
@@ -3524,9 +2755,9 @@ function renderCalendar() {
         sortBills(nextBills);
         cells.push(`<div class="day muted" data-date="${nextDateString}"><div class="day-number">${i}</div>${nextBills.map(bill => {
             const status = getBillStatus(bill);
-            const catIndex = bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1);
+            const catIndex = Math.max(1, data.categories.indexOf(bill.category) + 1);
             const priIndex = Number(bill.priority) + 1;
-            return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar pri-bar-${priIndex}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span><span class="cal-bill-amount"  >${formatMoney(getBillDisplayAmount(bill))}</span></button>`;
+            return `<button class="cal-bill ${status} category-color-${catIndex}" data-bill-id="${bill.id}" onclick="openCalBillModal('${bill.id}')" title="${escapeHtml(bill.name)}"><span class="cal-bill-bar pri-bar-${priIndex}"></span><span class="cal-bill-name">${escapeHtml(bill.name)}</span><span class="cal-bill-amount" ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${formatMoney(getBillDisplayAmount(bill))}</span></button>`;
         }).join("")}</div>`);
     }
 
@@ -3561,7 +2792,7 @@ function renderCalendar() {
     }
 
     renderCalSummaryCards();
-    if (currentActiveSection === "calendar") {
+    if (localStorage.getItem("activeSection") === "calendar") {
         renderCalProgressBar();
     }
 
@@ -3677,11 +2908,11 @@ function renderMonthlyInsights() {
     el.className = "mi-cat-grid";
     el.innerHTML = renderSummaryCard(catColors, monthBills, month, year, _mk) + data.categories.map((cat, idx) => {
         const color = catColors[idx % catColors.length];
-        return renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount, _mk, idx);
+        return renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount, _mk);
     }).join("");
 }
 
-function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) {
+function renderSummaryCard(catColors, monthBills, month, year, _mk) {
     const R = 66, CX = 90, CY = 90, SW = 30, CIRC = 2 * Math.PI * R;
     const GAP = 1.5;
     const monthName = new Date(year, month).toLocaleString("default", { month: "short" });
@@ -3692,9 +2923,8 @@ function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) 
         const catBills = monthBills.filter(b => b.category === cat);
         const payments = catBills.filter(b => b.type !== "refund");
         const totalExp = catBills.reduce((s, b) => b.type === "refund" ? s - (parseFloat(b.amount) || 0) : s + (parseFloat(b.amount) || 0), 0);
-        const totalPaid = catBills.filter(b => b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
-        const budgetSource = isPaycheckKey(_mk) ? data.paycheckBudgets : data.monthlyBudgets;
-        const budget = parseFloat(budgetSource?.[_mk]?.categories?.[cat] || 0);
+        const totalPaid = sum(catBills.filter(b => b.paid));
+        const budget = parseFloat(data.monthlyBudgets?.[_mk]?.categories?.[cat] || 0);
         return { cat, color, totalExp, totalPaid, budget, payments };
     });
 
@@ -3719,13 +2949,12 @@ function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) 
     const pill2Val = grandLeftToPay <= 0 ? "All paid ✓" : `${formatMoney(grandLeftToPay)} left to pay`;
 
     // Pie
-    const donutData = catData.filter((_, idx) => idx !== 0);
     let donutSegments = "", legendItems = "", offset = 0;
-    const totalNet = donutData.reduce((s, c) => s + c.totalExp, 0);
+    const totalNet = grandExp;
     if (totalNet <= 0) {
         donutSegments = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#e0e0e0" stroke-width="${SW}"/>`;
     } else {
-        donutData.forEach(({ cat, color, totalExp: net }) => {
+        catData.forEach(({ cat, color, totalExp: net }) => {
             if (net <= 0) return;
             const pct = net / totalNet;
             const dash = pct * CIRC;
@@ -3742,7 +2971,7 @@ function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) 
         });
         // gaps
         let gapOffset = 0;
-        donutData.forEach(({ totalExp: net }) => {
+        catData.forEach(({ totalExp: net }) => {
             if (net <= 0) return;
             const dash = (net / totalNet) * CIRC;
             gapOffset += dash;
@@ -3763,27 +2992,25 @@ function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) 
             <td style="color:${color.text};">${formatMoney(totalPaid)}</td>
         </tr>`).join("");
 
-    const _periodStart = cutoffDate || new Date(year, month, 1);
-    const autoRollover = calcAutoRollover(_periodStart);
-    const _rolloverCats = new Set([...(data.categories || []), "Investments"]);
-    const _hasPriorBills = (data.bills || []).some(b => b.paid && _rolloverCats.has(b.category) && parseLocalDate(getBillDisplayDate(b)) < _periodStart);
-    const _rolloverLabel = _hasPriorBills
-        ? `Rollover from ${new Date(year, month - 1).toLocaleString("default", { month: "long" })}`
-        : "Starting Balance";
-    const _helpTitle = _hasPriorBills ? "Rollover — How it works" : "Starting Balance — How it works";
-    const _helpText  = _hasPriorBills
-        ? "Amount carried over from the previous period, calculated automatically from your paid transactions."
-        : "The sum of your bank and cash account start balances — the money you had available before any transactions were recorded.";
-
     return `
         <div class="mi-cat-card">
             <div class="mi-cat-header" style="background:var(--peach);">
-                <div class="mi-cat-header-name">${new Date(year, month).toLocaleString("default", { month: "long" }).toUpperCase()} BREAKDOWN</div>
+                <div class="mi-cat-header-name">BILL BREAKDOWN</div>
             </div>
             <div class="mi-budget-section" style="background:var(--peach-soft-2);padding-bottom: 0px;">
                 <div class="mi-budget-top-row">
-                    <span class="mi-budget-label" style="color:var(--peach-text);"><span class="help-icon" data-help-title="${_helpTitle}" data-help="${_helpText}" style="cursor:pointer;margin-right:6px;">🪙</span>${_rolloverLabel}</span>
-                    <span class="mi-rollover-value" style="color:${autoRollover !== 0 ? 'var(--peach-text)' : 'var(--muted)'};">${formatMoney(autoRollover)}</span>
+                    <span class="mi-budget-label" style="color:var(--peach-text);"><span class="help-icon" data-help-title="Total Monthly Budget — How it works" data-help="This card gives you a complete overview of all your bills across all categories for the selected month.&lt;br&gt;&lt;br&gt;You can use the budget in two ways:&lt;br&gt;&lt;br&gt;&lt;strong&gt;1. Free mode (recommended for flexibility):&lt;/strong&gt; Leave this field empty and set budgets freely on each category card. The total here will show the sum automatically.&lt;br&gt;&lt;br&gt;&lt;strong&gt;2. Top-down mode:&lt;/strong&gt; Set a total budget here first, then distribute it across category cards. While typing in any category, you will see how much is left to distribute.&lt;br&gt;&lt;br&gt;&lt;p style='background:var(--yellow-soft);padding:10px 14px;border-radius:10px;font-size:13px;'&gt;💡 &lt;strong&gt;Note:&lt;/strong&gt; If the sum of category budgets exceeds the total, affected cards will show a red warning asking you to reduce.&lt;/p&gt;" style="cursor:pointer;margin-right:6px;">🏦</span>Total Monthly Budget</span>
+                    <div class="mi-budget-input-row">
+                        <span class="mi-budget-prefix" style="color:var(--peach-text);">$</span>
+                        <div class="mi-budget-hint" id="mi-budget-hint-breakdown"></div>
+                        <input class="mi-budget-input" type="number" placeholder="${grandBudget > 0 ? grandBudget.toFixed(2) : '—'}"
+                            style="color:${data.monthlyBudgets?.[_mk]?.total > 0 ? 'var(--peach-text)' : 'var(--muted)'};border-color:var(--peach);"
+                            value="${data.monthlyBudgets?.[_mk]?.total > 0 ? data.monthlyBudgets[_mk].total.toFixed(2) : ''}"
+                            oninput="saveAllBudget(this)" onblur="saveAllBudgetOnBlur(this)" autocomplete="off" autocorrect="off" autocapitalize="off"
+            onfocus="showBudgetHint(this)"
+            oninput="showBudgetHint(this)"
+            onblur="hideBudgetHint(this)">
+                    </div>
                 </div>
                 </div>
             <div style="background:#fff;padding:10px 10px 4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);">
@@ -3806,33 +3033,41 @@ function renderSummaryCard(catColors, monthBills, month, year, _mk, cutoffDate) 
                     <span><span class="mi-bar-duo-dot" style="background:var(--peach);"></span>Paid</span>
                 </div>
             </div>
+            <div class="mi-donut-section">
+                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="BILL BREAKDOWN breakdown">
+                    ${donutSegments}
+                    <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--peach-text)">${monthName}</text>
+                    <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">BREAKDOWN</text>
+                </svg>
+                <div class="mi-donut-legend">${legendItems}</div>
+            </div>
             <div class="mi-table-scroll mi-table-summary" style="background:var(--peach-soft-3);">
                 <table class="mi-cat-table">
                     <thead style="background:var(--peach-soft-2);"><tr><th>Category</th><th>Expected</th><th>Paid</th></tr></thead>
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
-            <div class="mi-donut-section" style="border-top:2px solid var(--line);">
-                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="MONTHLY BREAKDOWN">
-                    ${donutSegments}
-                    <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--peach-text)">${monthName}</text>
-                    <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">BREAKDOWN</text>
-                </svg>
-                <div class="mi-donut-legend">${legendItems || '<span style="font-size:11px;color:var(--muted);">No transactions this month</span>'}</div>
-            </div>
+            <table class="mi-cat-table mi-cat-total">
+                <tfoot style="background:var(--peach-soft-2);">
+                    <tr>
+                        <td class="mi-cat-total-label">Total</td>
+                        <td class="mi-cat-total-exp">${formatMoney(grandExp)}</td>
+                        <td class="mi-cat-total-paid" style="color:var(--peach-text);">${formatMoney(grandPaid)}</td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>`;
 }
 
-function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount, _mk, idx) {
+function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount, _mk) {
     const catBills = monthBills.filter(b => b.category === cat);
     const payments = catBills.filter(b => b.type !== "refund");
     const refunds = catBills.filter(b => b.type === "refund");
     const totalExp = catBills.reduce((s, b) => b.type === "refund" ? s - (parseFloat(b.amount) || 0) : s + (parseFloat(b.amount) || 0), 0);
-    const totalPaid = catBills.filter(b => b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
+    const totalPaid = sum(catBills.filter(b => b.paid));
     const totalLeftToPay = sum(payments.filter(b => !b.paid));
-    const budgetSource = isPaycheckKey(_mk) ? data.paycheckBudgets : data.monthlyBudgets;
-    const budget = parseFloat(budgetSource?.[_mk]?.categories?.[cat] || 0);
-    const totalFinal = catBills.reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
+    const budget = parseFloat(data.monthlyBudgets?.[_mk]?.categories?.[cat] || 0);
+    const totalFinal = sum(catBills);
     const max = Math.max(budget, totalFinal, 1);
     const expPct = Math.min((totalFinal / max) * 100, 100);
     const paidPct = Math.min((totalPaid / max) * 100, 100);
@@ -3946,35 +3181,15 @@ function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount
 
     let pill1Class = "mi-pill-neutral";
     let pill1Val = "Set a budget to track planning";
-    if (idx === 0) {
-        pill1Val = "Set an expected income to track";
-        if (budget > 0) {
-            const room = budget - totalFinal;
-            if (totalFinal === 0) { pill1Class = "mi-pill-neutral"; pill1Val = "No income planned yet"; }
-            else if (room > 0) { pill1Class = "mi-pill-yellow"; pill1Val = `${formatMoney(room)} below expected`; }
-            else if (room === 0) { pill1Class = "mi-pill-green"; pill1Val = "Expected income fully planned"; }
-            else { pill1Class = "mi-pill-green"; pill1Val = `${formatMoney(Math.abs(room))} over expected`; }
-        }
-    } else if (idx === 1) {
-        pill1Val = "Set a savings goal to track";
-        if (budget > 0) {
-            const room = budget - totalFinal;
-            if (totalFinal === 0) { pill1Class = "mi-pill-neutral"; pill1Val = "No savings planned yet"; }
-            else if (room > 0) { pill1Class = "mi-pill-yellow"; pill1Val = `${formatMoney(room)} below savings goal`; }
-            else if (room === 0) { pill1Class = "mi-pill-green"; pill1Val = "Savings goal fully planned"; }
-            else { pill1Class = "mi-pill-green"; pill1Val = `${formatMoney(Math.abs(room))} over savings goal`; }
-        }
-    } else {
-        if (budget > 0) {
-            const room = budget - totalFinal;
-            if (room > 0) { pill1Class = "mi-pill-green"; pill1Val = `You can still plan ${formatMoney(room)} more`; }
-            else if (room === 0) { pill1Class = "mi-pill-green"; pill1Val = "Budget fully allocated"; }
-            else { pill1Class = "mi-pill-red"; pill1Val = `${formatMoney(Math.abs(room))} over budget`; }
-        }
+    if (budget > 0) {
+        const room = budget - totalFinal;
+        if (room > 0) { pill1Class = "mi-pill-green"; pill1Val = `You can still plan ${formatMoney(room)} more`; }
+        else if (room === 0) { pill1Class = "mi-pill-green"; pill1Val = "Budget fully allocated"; }
+        else { pill1Class = "mi-pill-red"; pill1Val = `${formatMoney(Math.abs(room))} over budget`; }
     }
 
     const pill2Class = payments.length === 0 ? "mi-pill-neutral" : totalLeftToPay <= 0 ? "mi-pill-green" : "mi-pill-yellow";
-    const pill2Val = payments.length === 0 ? `No ${cat} this month` : totalLeftToPay <= 0 ? (idx === 0 ? "All received ✓" : idx === 1 ? "All saved ✓" : "All paid ✓") : (idx === 0 ? `${formatMoney(totalLeftToPay)} left to receive` : idx === 1 ? `${formatMoney(totalLeftToPay)} left to save` : `${formatMoney(totalLeftToPay)} left to pay`);
+    const pill2Val = payments.length === 0 ? "No bills this month" : totalLeftToPay <= 0 ? "All paid ✓" : `${formatMoney(totalLeftToPay)} left to pay`;
 
     // Grupăm payments după nume pentru tabel
     const paymentGroups = {};
@@ -4019,7 +3234,7 @@ function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount
 
     const tableRows = payments.length > 0 || standaloneRefunds.length > 0
         ? [...paymentRows, ...refundRows].join("")
-        : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No ${cat} this month</td></tr>`;
+        : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No bills this month</td></tr>`;
 
     const monthName = new Date(year, month).toLocaleString("default", { month: "short" });
 
@@ -4031,19 +3246,18 @@ function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount
 
             <div class="mi-budget-section" style="background:${color.soft};">
                 <div class="mi-budget-top-row">
-                    <span class="mi-budget-label" style="color:${color.text};">${(() => {
-    if (idx === 0) return `<span class="help-icon" data-help-title="Expected Income — How it works" data-help="Enter your expected total income for this month. Use this to compare against your actual received income." style="cursor:pointer;margin-right:6px;">📈</span>Expected Income`;
-    if (idx === 1) return `<span class="help-icon" data-help-title="Savings Goal — How it works" data-help="Enter your savings goal for this month. Use this to compare against your actual saved amount." style="cursor:pointer;margin-right:6px;">🎯</span>Savings Goal`;
-    return `<span class="help-icon" data-help-title="Monthly Budget — How it works" data-help="Set a monthly budget for this category to track your spending.&lt;br&gt;&lt;br&gt;The progress bar shows how much of your budget has been allocated (actual) and how much has already been paid." style="cursor:pointer;margin-right:6px;">💰</span>Monthly Budget`;
-})()}</span>
+                    <span class="mi-budget-label" style="color:${color.text};"><span class="help-icon" data-help-title="Monthly Budget — How it works" data-help="Set a monthly budget for this category to track your spending.&lt;br&gt;&lt;br&gt;The progress bar shows how much of your budget has been allocated (actual) and how much has already been paid.&lt;br&gt;&lt;br&gt;The pie chart breaks down your bills by amount — paid bills appear in color, unpaid in grey, and overdue in red.&lt;br&gt;&lt;br&gt;The table lists each bill with its expected and actual paid amount. Bills marked as paid show the net amount after any refunds.&lt;br&gt;&lt;br&gt;&lt;p style='background:var(--yellow-soft);padding:10px 14px;border-radius:10px;font-size:13px;'&gt;💡 &lt;strong&gt;Tip:&lt;/strong&gt; If a Total Monthly Budget is set in the Bill Breakdown card, you will see how much is left to distribute while typing. If the sum of categories exceeds the total, the affected cards will show a red warning asking you to reduce.&lt;/p&gt;" style="cursor:pointer;margin-right:6px;">💰</span>Monthly Budget</span>
                     <div class="mi-budget-input-row">
-                        ${data.settings.currencyPosition !== "after" ? `<span class="mi-budget-prefix" style="color:${color.text};">${String(data.settings.currencySymbol || "$").split("|")[0]}</span>` : ""}                      
+                        ${data.settings.currencyPosition !== "after" ? `<span class="mi-budget-prefix" style="color:${color.text};">${String(data.settings.currencySymbol || "$").split("|")[0]}</span>` : ""}
+                        <div class="mi-budget-hint ${overdraftAmount > 0 && budget > 0 ? "visible over" : ""}">${overdraftAmount > 0 && budget > 0 ? `Reduce by ${formatMoney(overdraftAmount)}` : ""}</div>
                         <input class="mi-budget-input" type="number" placeholder="—"
                             style="color:${color.inputColor};border-color:${color.border};"
                             value="${budget ? budget.toFixed(2) : ""}"
                             data-cat="${cat}"
-                            oninput="saveCategoryBudget(this)" onblur="saveCategoryBudgetOnBlur(this)" onkeydown="if(event.key==='Enter')this.blur()" autocomplete="off" autocorrect="off" autocapitalize="off"
-                            >
+                            oninput="saveCategoryBudget(this)" onblur="saveCategoryBudgetOnBlur(this)" autocomplete="off" autocorrect="off" autocapitalize="off"
+                            onfocus="showBudgetHint(this)"
+                            oninput="showBudgetHint(this)"
+                            onblur="hideBudgetHint(this)">
                         ${data.settings.currencyPosition === "after" ? `<span class="mi-budget-prefix" style="color:${color.text};">${String(data.settings.currencySymbol || "$").split("|")[0]}</span>` : ""}
                     </div>
                 </div>
@@ -4052,9 +3266,9 @@ function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount
                     <div class="mi-bar-paid" style="width:${paidPct}%;background:${color.shades[0]};"></div>
                 </div>
                 <div class="mi-bar-labels">
-                    <span style="display:inline-flex;flex-direction:column;gap:2px;align-items:center;"><span style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color.shades[0]};"></span>${idx === 0 ? "received" : idx === 1 ? "saved" : "paid"}</span><strong style="color:${color.text};">${formatMoney(totalPaid)}</strong></span>
-                    <span style="display:inline-flex;flex-direction:column;gap:2px;align-items:center;"><span style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${budget > 0 && (idx === 0 || idx === 1) ? (totalFinal >= budget ? color.main : "var(--red-soft)") : (budget > 0 && totalFinal > budget ? "var(--red-soft)" : color.main)};opacity:0.65;"></span>actual</span><strong style="color:${budget > 0 && (idx === 0 || idx === 1) ? (totalFinal >= budget ? color.text : "var(--red)") : (budget > 0 && totalFinal > budget ? "var(--red)" : color.text)};">${formatMoney(totalFinal)}</strong></span>
-                    <span style="display:inline-flex;flex-direction:column;gap:2px;align-items:center;"><span style="display:inline-flex;align-items:center;gap:4px;"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#eee;"></span>${idx === 0 ? "expected" : idx === 1 ? "goal" : "budget"}</span><strong style="color:var(--muted);">${budget ? formatMoney(budget) : "—"}</strong></span>
+                    <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${color.shades[0]};margin-right:4px;vertical-align:middle;"></span>paid <strong style="color:${color.text};">${formatMoney(totalPaid)}</strong></span>
+                    <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${budget > 0 && totalFinal > budget ? "var(--red-soft)" : color.main};opacity:0.65;margin-right:4px;vertical-align:middle;"></span>actual <strong style="color:${budget > 0 && totalFinal > budget ? "var(--red)" : color.text};">${formatMoney(totalFinal)}</strong></span>
+                    <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#eee;margin-right:4px;vertical-align:middle;"></span>budget <strong style="color:var(--muted);">${budget ? formatMoney(budget) : "—"}</strong></span>
                 </div>
                 <div class="mi-pills">
                     <div class="mi-pill ${pill1Class}"><span class="mi-pill-val">${pill1Val}</span></div>
@@ -4068,12 +3282,12 @@ function renderCategoryCard(cat, color, monthBills, month, year, overdraftAmount
                     <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="${color.inputColor}">${monthName}</text>
                     <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">${cat.split(" ")[0].toUpperCase()}</text>
                 </svg>
-                <div class="mi-donut-legend">${legendItems || `<span style="font-size:11px;color:var(--muted);">No ${cat} this month</span>`}</div>
+                <div class="mi-donut-legend">${legendItems || '<span style="font-size:11px;color:var(--muted);">No bills</span>'}</div>
             </div>
 
             <div class="mi-table-scroll" style="background:${color.tableBg};">
                 <table class="mi-cat-table">
-                    <thead style="background:${color.soft};"><tr><th>Name</th><th>Expected</th><th>Paid</th></tr></thead>
+                    <thead style="background:${color.soft};"><tr><th>Bill Name</th><th>Expected</th><th>Paid</th></tr></thead>
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
@@ -4133,6 +3347,39 @@ function saveCategoryBudgetOnBlur(input) {
 
     saveData();
     renderMonthlyInsights();
+}
+
+function showBudgetHint(input) {
+    const month = currentCalendarDate.getMonth();
+    const year = currentCalendarDate.getFullYear();
+    const mk = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const totalBudget = parseFloat(data.monthlyBudgets?.[mk]?.total || 0);
+    if (totalBudget <= 0) return;
+    const hint = input.closest(".mi-budget-input-row").querySelector(".mi-budget-hint");
+    if (!hint) return;
+    const current = parseFloat(input.value) || 0;
+    const allInputs = document.querySelectorAll(".mi-budget-input[data-cat]");
+    const catSum = Array.from(allInputs).reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+    const remaining = totalBudget - catSum;
+    const sym = String(data.settings?.currencySymbol || "$").split("|")[0];
+    const pos = data.settings?.currencyPosition;
+    const fmt = (v) => pos === "after" ? `${Math.abs(v).toFixed(2)}${sym}` : `${sym}${Math.abs(v).toFixed(2)}`;
+    hint.classList.remove("full", "over");
+    if (remaining < 0) {
+        hint.textContent = `${fmt(remaining)} over budget`;
+        hint.classList.add("over");
+    } else if (remaining === 0) {
+        hint.textContent = "Budget fully distributed";
+        hint.classList.add("full");
+    } else {
+        hint.textContent = `${fmt(remaining)} left to distribute`;
+    }
+    hint.classList.add("visible");
+}
+
+function hideBudgetHint(input) {
+    const hint = input.closest(".mi-budget-input-row").querySelector(".mi-budget-hint");
+    if (hint) hint.classList.remove("visible");
 }
 
 function renderMonthlyNotes() {
@@ -4225,158 +3472,6 @@ function saveAllBudgetOnBlur(input) {
     renderMonthlyInsights();
 }
 
-function loadPaycheckSettings() {
-    const ps = data.paycheckSettings || {};
-    if (els.paycheckFrequency) els.paycheckFrequency.value = ps.frequency || "custom";
-    if (els.paycheckStartDate) {
-        els.paycheckStartDate.value = ps.startDate || "";
-        if (!ps.startDate) els.paycheckStartDate.type = "text", els.paycheckStartDate.type = "date";
-    }
-    if (els.paycheckNamePrefix) els.paycheckNamePrefix.value = ps.namePrefix || "Paycheck";
-    if (els.highlightPaycheckCalendar) els.highlightPaycheckCalendar.value = ps.highlightCalendar || "yes";
-    const semiDay1 = document.getElementById("paycheckSemiDay1");
-    const semiDay2 = document.getElementById("paycheckSemiDay2");
-    const semiStart = document.getElementById("paycheckSemiStartMonth");
-    if (semiDay1) semiDay1.value = ps.semiDay1 || "";
-    if (semiDay2) semiDay2.value = ps.semiDay2 || "";
-    if (semiStart) semiStart.value = ps.semiStartMonth || "";
-    updatePaycheckSetupVisibility();
-}
-
-function updatePaycheckSetupVisibility() {
-    const freq = data.paycheckSettings?.frequency || "custom";
-    const isAuto = freq !== "custom";
-    const isSemi = freq === "semimonthly";
-     document.getElementById("paycheckStartDateWrap").style.display = isAuto ? "" : "none";
-    document.getElementById("paycheckNameWrap").style.display = isAuto ? "" : "none";
-    document.getElementById("paycheckGenerateWrap").style.display = isAuto ? "" : "none";
-        const deleteAllWrap = document.getElementById("deleteAllPaychecksWrap");
-        if (deleteAllWrap) deleteAllWrap.style.display = (data.paychecks?.length > 0) ? "" : "none";
-    document.getElementById("paycheckSemiMonthlyWrap").style.display = isSemi ? "" : "none";
-    document.getElementById("paycheckSemiMonthlyWrap2").style.display = isSemi ? "" : "none";
-}
-
-function generatePaychecks() {
-    const ps = data.paycheckSettings || {};
-    const freq = ps.frequency;
-    const startDateStr = ps.startDate;
-    const namePrefix = ps.namePrefix || "Paycheck";
-
-    if (!startDateStr) { alert("Please set a start date first."); return; }
-    if (freq === "custom") return;
-
-    const start = parseLocalDate(startDateStr);
-    start.setHours(0, 0, 0, 0);
-
-    if (freq === "semimonthly") {
-        const d1 = parseInt(ps.semiDay1) || 1;
-        const d2 = parseInt(ps.semiDay2) || 15;
-        const day = start.getDate();
-        if (day < d1) {
-            start.setDate(d1);
-        } else if (day > d1 && day < d2) {
-            start.setDate(d2);
-        }
-    }
-
-    const existing = data.paychecks || [];
-    const affected = existing.filter(pc => {
-        const pcEnd = parseLocalDate(pc.endDate);
-        return pcEnd >= start;
-    });
-
-    if (affected.length > 0) {
-        const confirmed = confirm(`Paychecks from ${startDateStr} onward will be replaced. Any budget data for those periods will be lost. Continue?`);
-        if (!confirmed) return;
-    }
-
-    const dayBefore = new Date(start);
-    dayBefore.setDate(dayBefore.getDate() - 1);
-
-    const kept = existing.filter(pc => {
-        const pcEnd = parseLocalDate(pc.endDate);
-        return pcEnd < start;
-    });
-
-    const overlapping = existing.find(pc => {
-        const pcStart = parseLocalDate(pc.startDate);
-        const pcEnd = parseLocalDate(pc.endDate);
-        return pcStart < start && pcEnd >= start;
-    });
-    if (overlapping) {
-        kept.push({ ...overlapping, endDate: toLocalDateInputValue(dayBefore) });
-    }
-
-    const removedIds = affected.map(pc => pc.id);
-    removedIds.forEach(id => {
-        if (data.paycheckBudgets?.[id]) delete data.paycheckBudgets[id];
-        if (data.monthlyNotes?.[`notes_paycheck_${id}`]) delete data.monthlyNotes[`notes_paycheck_${id}`];
-    });
-
-    const endLimit = new Date(start.getFullYear(), 11, 31);
-    const newPaychecks = [];
-    let current = new Date(start);
-    let counter = kept.length + 1;
-
-    while (current <= endLimit) {
-        let periodEnd;
-
-        if (freq === "weekly") {
-            periodEnd = new Date(current);
-            periodEnd.setDate(periodEnd.getDate() + 6);
-        } else if (freq === "biweekly") {
-            periodEnd = new Date(current);
-            periodEnd.setDate(periodEnd.getDate() + 13);
-        } else if (freq === "semimonthly") {
-            const d1 = parseInt(ps.semiDay1) || 1;
-            const d2 = parseInt(ps.semiDay2) || 15;
-            if (current.getDate() < d2) {
-                periodEnd = new Date(current.getFullYear(), current.getMonth(), d2 - 1);
-            } else {
-                periodEnd = new Date(current.getFullYear(), current.getMonth() + 1, d1 - 1);
-            }
-        }
-
-        newPaychecks.push({
-            id: crypto.randomUUID(),
-            name: `${namePrefix} ${counter}`,
-            startDate: toLocalDateInputValue(current),
-            endDate: toLocalDateInputValue(periodEnd)
-        });
-
-        counter++;
-
-        if (freq === "weekly" || freq === "biweekly") {
-            current = new Date(periodEnd);
-            current.setDate(current.getDate() + 1);
-        } else if (freq === "semimonthly") {
-            const d1 = parseInt(ps.semiDay1) || 1;
-            const d2 = parseInt(ps.semiDay2) || 15;
-            if (current.getDate() < d2) {
-                current = new Date(current.getFullYear(), current.getMonth(), d2);
-            } else {
-                current = new Date(current.getFullYear(), current.getMonth() + 1, d1);
-            }
-        }
-    }
-
-    data.paychecks = [...kept, ...newPaychecks];
-    ps.startDate = toLocalDateInputValue(current);
-    if (els.paycheckStartDate) els.paycheckStartDate.value = ps.startDate;
-    saveData();
-    updatePaycheckSetupVisibility();
-    if (typeof resetPaycheckInitialized === "function") resetPaycheckInitialized();
-    const keptMsg = kept.length > 0 ? ` ${kept.length} previous paychecks kept.` : "";
-    alert(`${newPaychecks.length} paychecks generated.${keptMsg}\n\nYou can view them in the dropdown at the top of the Paycheck Budget page.`);
-}
-
-window.generatePaychecks = generatePaychecks;
-
-function isPaycheckKey(mk) {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mk);
-}
-
-
 function showBudgetWarning(msg) {
     let w = document.getElementById("budget-warning-toast");
     if (!w) {
@@ -4445,25 +3540,23 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
         const catBills = yearBills.filter(b => b.category === cat);
         const payments = catBills.filter(b => b.type !== "refund");
         const totalExp = catBills.reduce((s, b) => b.type === "refund" ? s - (parseFloat(b.amount) || 0) : s + (parseFloat(b.amount) || 0), 0);
-        const totalPaid = catBills.filter(b => b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
+        const totalPaid = sum(catBills.filter(b => b.paid));
         return { cat, color, totalExp, totalPaid, payments };
     });
 
-    const spendingData = catData.filter((_, idx) => idx !== 0);
-    const grandExp = spendingData.reduce((s, c) => s + c.totalExp, 0);
-    const grandPaid = spendingData.reduce((s, c) => s + c.totalPaid, 0);
+    const grandExp = catData.reduce((s, c) => s + c.totalExp, 0);
+    const grandPaid = catData.reduce((s, c) => s + c.totalPaid, 0);
 
     const max = Math.max(grandExp, 1);
     const expPct = Math.min((grandExp / max) * 100, 100);
     const paidPct = Math.min((grandPaid / max) * 100, 100);
 
-    const donutData = catData.filter((_, idx) => idx !== 0);
     let donutSegments = "", legendItems = "", offset = 0;
-    const totalNet = donutData.reduce((s, c) => s + c.totalExp, 0);
+    const totalNet = grandExp;
     if (totalNet <= 0) {
         donutSegments = `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#e0e0e0" stroke-width="${SW}"/>`;
     } else {
-        donutData.forEach(({ cat, color, totalExp: net }) => {
+        catData.forEach(({ cat, color, totalExp: net }) => {
             if (net <= 0) return;
             const pct = net / totalNet;
             const dash = pct * CIRC;
@@ -4479,7 +3572,7 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
             offset += dash;
         });
         let gapOffset = 0;
-        donutData.forEach(({ totalExp: net }) => {
+        catData.forEach(({ totalExp: net }) => {
             if (net <= 0) return;
             const dash = (net / totalNet) * CIRC;
             gapOffset += dash;
@@ -4502,7 +3595,7 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
     return `
         <div class="mi-cat-card">
             <div class="mi-cat-header" style="background:var(--peach);">
-                <div class="mi-cat-header-name">${year} BREAKDOWN</div>
+                <div class="mi-cat-header-name">${year} BILL BREAKDOWN</div>
             </div>
             <div style="background:#fff;padding:12px 10px 8px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);">
                 <div class="mi-bar-chart-title">EXPECTED VS PAID BY CATEGORY IN ${year}</div>
@@ -4525,9 +3618,9 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
                     <span><span class="mi-bar-duo-dot" style="background:var(--peach);"></span>Paid</span>
                 </div>
             </div>
-            <div style="background:var(--peach-soft-2);padding:22px 16px;border-bottom:2px solid var(--line);display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center;">
+            <div style="background:var(--peach-soft-2);padding:10px 16px;border-bottom:2px solid var(--line);display:flex;flex-direction:column;gap:4px;align-items:center;text-align:center;">
                 <div style="font-size:12px;color:var(--muted);font-weight:600;">
-                    <span class="help-icon" data-help-title="Planned vs Paid" data-help="Includes Savings, Bills, Expenses and Debt Payments. Income is excluded." style="cursor:pointer;margin-right:4px;">📊</span>planned <strong style="color:var(--peach-text);">${formatMoney(grandExp)}</strong> · paid <strong style="color:var(--peach-text);">${formatMoney(grandPaid)}</strong>
+                    planned <strong style="color:var(--peach-text);">${formatMoney(grandExp)}</strong> · paid <strong style="color:var(--peach-text);">${formatMoney(grandPaid)}</strong>
                 </div>
                 <div style="font-size:13px;font-weight:800;color:${grandPaid > grandExp ? 'var(--red)' : 'var(--priority-4-color)'};">
                     ${grandPaid > grandExp
@@ -4538,12 +3631,12 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
                 </div>
             </div>
             <div class="mi-donut-section">
-                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="YEARLY BREAKDOWN">
+                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="BILL BREAKDOWN breakdown">
                     ${donutSegments}
                     <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--peach-text)">${year}</text>
                     <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">BREAKDOWN</text>
                 </svg>
-                <div class="mi-donut-legend">${legendItems || '<span style="font-size:11px;color:var(--muted);">No transactions this year</span>'}</div>
+                <div class="mi-donut-legend">${legendItems}</div>
             </div>
             <div class="mi-table-scroll mi-table-summary" style="background:var(--peach-soft-3);">
                 <table class="mi-cat-table">
@@ -4551,15 +3644,23 @@ function renderYearlySummaryCard(catColors, yearBills, year) {
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
-            </div>`;
+            <table class="mi-cat-table mi-cat-total">
+                <tfoot style="background:var(--peach-soft-2);">
+                    <tr>
+                        <td class="mi-cat-total-label">Total</td>
+                        <td class="mi-cat-total-exp">${formatMoney(grandExp)}</td>
+                        <td class="mi-cat-total-paid" style="color:var(--peach-text);">${formatMoney(grandPaid)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>`;
 }
 
 function renderYearlyTop5Card(catColors, yearBills, year) {
     const R = 66, CX = 90, CY = 90, SW = 30, CIRC = 2 * Math.PI * R;
     const GAP = 1.5;
 
-    const spendingCats = data.categories.slice(2);
-const payments = yearBills.filter(b => b.paid && spendingCats.includes(b.category));
+    const payments = yearBills.filter(b => b.type !== "refund" && b.paid);
 
     // Grupăm după nume și sumăm paid
     const groups = {};
@@ -4573,9 +3674,8 @@ const payments = yearBills.filter(b => b.paid && spendingCats.includes(b.categor
                 category: bill.category
             };
         }
-        const amt = parseFloat(getBillDisplayAmount(bill)) || 0;
-        groups[key].totalPaid += bill.type === "refund" ? -amt : amt;
-        groups[key].totalExp += bill.type === "refund" ? 0 : (parseFloat(bill.amount) || 0);
+        groups[key].totalPaid += parseFloat(getBillDisplayAmount(bill)) || 0;
+        groups[key].totalExp += parseFloat(bill.amount) || 0;
     });
 
     const top5 = Object.values(groups)
@@ -4640,9 +3740,7 @@ const payments = yearBills.filter(b => b.paid && spendingCats.includes(b.categor
     }).join("");
 
     // Tabel
-    const tableRows = top5.length === 0
-        ? `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No paid spendings this year</td></tr>`
-        : top5.map((g, i) => {
+    const tableRows = top5.map((g, i) => {
         const shade = peachShades[i % peachShades.length];
         return `<tr>
             <td><div class="mi-td-name" style="color:var(--peach-text);">${g.name}</div></td>
@@ -4654,19 +3752,19 @@ const payments = yearBills.filter(b => b.paid && spendingCats.includes(b.categor
     return `
         <div class="mi-cat-card">
             <div class="mi-cat-header" style="background:var(--peach);">
-                <div class="mi-cat-header-name">TOP 5 SPENDINGS IN ${year}</div>
+                <div class="mi-cat-header-name">TOP 5 BILLS IN ${year}</div>
             </div>
             <div class="mi-donut-section">
-                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="Top 5 spendings ${year}">
+                <svg viewBox="0 0 180 180" role="img" class="mi-donut-svg" aria-label="Top 5 bills ${year}">
                     ${donutSegments}
                     <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="var(--peach-text)">${year}</text>
                     <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">TOP 5</text>
                 </svg>
-                <div class="mi-donut-legend">${legendItems || '<span style="font-size:11px;color:var(--muted);">No paid spendings this year</span>'}</div>
+                <div class="mi-donut-legend">${legendItems}</div>
             </div>
             <div class="mi-table-scroll mi-table-summary" style="background:var(--peach-soft-3);">
                 <table class="mi-cat-table">
-                    <thead style="background:var(--peach-soft-2);"><tr><th>Name</th><th>Expected</th><th>Paid</th></tr></thead>
+                    <thead style="background:var(--peach-soft-2);"><tr><th>Bill Name</th><th>Expected</th><th>Paid</th></tr></thead>
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
@@ -4683,14 +3781,14 @@ const payments = yearBills.filter(b => b.paid && spendingCats.includes(b.categor
 }
 
 function renderYearlyMonthlyCard(cat, color, yearBills, year) {
-    const catBills = yearBills.filter(b => b.category === cat);
+    const catBills = yearBills.filter(b => b.category === cat && b.type !== "refund");
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     const monthData = monthNames.map((name, i) => {
         const mBills = catBills.filter(b => parseLocalDate(b.dueDate).getMonth() === i);
-        const exp = mBills.filter(b => b.type !== "refund").reduce((s, b) => s + (parseFloat(b.amount) || 0), 0);
-        const paid = mBills.filter(b => b.paid).reduce((s, b) => b.type === "refund" ? s - (parseFloat(getBillDisplayAmount(b)) || 0) : s + (parseFloat(getBillDisplayAmount(b)) || 0), 0);
+        const exp = mBills.reduce((s, b) => s + (parseFloat(b.amount) || 0), 0);
+        const paid = sum(mBills.filter(b => b.paid));
         return { name, exp, paid };
     });
 
@@ -4827,15 +3925,8 @@ function renderYearlyCategoryCard(cat, color, yearBills, year) {
 
     const groupList = Object.values(groups).sort((a, b) => b.totalExp - a.totalExp);
 
-    // Refund-uri standalone (fără payment cu același nume)
-    const standaloneRefunds = refunds.filter(r => {
-        const key = r.name.trim().toLowerCase();
-        return !groups[key] && r.paid;
-    });
-    const standaloneRefundTotal = standaloneRefunds.reduce((s, r) => s + (parseFloat(getBillDisplayAmount(r)) || 0), 0);
-
     const totalExp = groupList.reduce((s, g) => s + g.totalExp, 0);
-    const totalPaid = groupList.reduce((s, g) => s + g.totalPaid, 0) - standaloneRefundTotal;
+    const totalPaid = groupList.reduce((s, g) => s + g.totalPaid, 0);
     const totalLeftToPay = groupList.reduce((s, g) => s + (g.allPaid ? 0 : g.totalExp - g.totalPaid), 0);
     const totalFinal = totalExp;
 
@@ -4899,25 +3990,16 @@ function renderYearlyCategoryCard(cat, color, yearBills, year) {
     }
 
     const pill2Class = groupList.length === 0 ? "mi-pill-neutral" : totalLeftToPay <= 0 ? "mi-pill-green" : "mi-pill-yellow";
-    const pill2Val = groupList.length === 0 ? `No ${cat} this year` : totalLeftToPay <= 0 ? "All paid ✓" : `${formatMoney(totalLeftToPay)} left to pay`;
+    const pill2Val = groupList.length === 0 ? "No bills this year" : totalLeftToPay <= 0 ? "All paid ✓" : `${formatMoney(totalLeftToPay)} left to pay`;
 
-    const standaloneRefundRows = standaloneRefunds.map(r => {
-        const amt = parseFloat(getBillDisplayAmount(r)) || 0;
-        return `<tr>
-            <td><div class="mi-td-name" style="color:${color.text};">${r.name}</div></td>
-            <td class="mi-td-exp">—</td>
-            <td style="color:var(--priority-4-color);">&#x27A1; ${formatMoney(amt)}</td>
-        </tr>`;
-    }).join("");
-
-    const tableRows = groupList.length > 0 || standaloneRefunds.length > 0
+    const tableRows = groupList.length > 0
         ? groupList.map(g => `
             <tr>
                 <td><div class="mi-td-name" style="color:${color.text};">${g.name}${g.count > 1 ? ` <span style="font-size:11px;color:var(--muted);">×${g.count}</span>` : ""}</div></td>
                 <td class="mi-td-exp">${formatMoney(g.totalExp)}</td>
                 <td style="color:${g.totalPaid > 0 ? color.text : "var(--line)"};">${g.totalPaid > 0 ? formatMoney(g.totalPaid) : "—"}</td>
-            </tr>`).join("") + standaloneRefundRows
-        : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No ${cat} this year</td></tr>`;
+            </tr>`).join("")
+        : `<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px;">No bills this year</td></tr>`;
 
     return `
         <div class="mi-cat-card">
@@ -4930,11 +4012,11 @@ function renderYearlyCategoryCard(cat, color, yearBills, year) {
                     <text x="${CX}" y="${CY - 6}" text-anchor="middle" font-size="15" font-weight="700" fill="${color.inputColor}">${year}</text>
                     <text x="${CX}" y="${CY + 10}" text-anchor="middle" font-size="11" fill="#999">${cat.split(" ")[0].toUpperCase()}</text>
                 </svg>
-                <div class="mi-donut-legend">${legendItems || `<span style="font-size:11px;color:var(--muted);">No ${cat} this year</span>`}</div>
+                <div class="mi-donut-legend">${legendItems || '<span style="font-size:11px;color:var(--muted);">No bills</span>'}</div>
             </div>
             <div class="mi-table-scroll" style="background:${color.tableBg};">
                 <table class="mi-cat-table">
-                    <thead style="background:${color.soft};"><tr><th>Name</th><th>Expected</th><th>Paid</th></tr></thead>
+                    <thead style="background:${color.soft};"><tr><th>Bill Name</th><th>Expected</th><th>Paid</th></tr></thead>
                     <tbody>${tableRows}</tbody>
                 </table>
             </div>
@@ -4948,6 +4030,15 @@ function renderYearlyCategoryCard(cat, color, yearBills, year) {
                 </tfoot>
             </table>
         </div>`;
+}
+
+function getBillsForCurrentMonth() {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    return data.bills.filter(bill => {
+        const date = parseLocalDate(bill.dueDate);
+        return date.getFullYear() === year && date.getMonth() === month;
+    });
 }
 
 function getBillDisplayAmount(bill) {
@@ -4982,10 +4073,6 @@ function sortBills(arr) {
         const dateA = getBillDisplayDate(a);
         const dateB = getBillDisplayDate(b);
         if (dateA !== dateB) return dateA.localeCompare(dateB);
-        const isIncomeReceivedA = a.category === "Income" && a.type === "payment";
-        const isIncomeReceivedB = b.category === "Income" && b.type === "payment";
-        if (isIncomeReceivedA && !isIncomeReceivedB) return -1;
-        if (!isIncomeReceivedA && isIncomeReceivedB) return 1;
         return (Number(a.priority) || 2) - (Number(b.priority) || 2);
     });
 }
@@ -4995,13 +4082,7 @@ function sortBillsChronological(arr) {
         const dateA = getBillDisplayDate(a);
         const dateB = getBillDisplayDate(b);
         if (dateA !== dateB) return dateA.localeCompare(dateB);
-        const isIncomeReceivedA = a.category === "Income" && a.type === "payment";
-        const isIncomeReceivedB = b.category === "Income" && b.type === "payment";
-        if (isIncomeReceivedA && !isIncomeReceivedB) return -1;
-        if (!isIncomeReceivedA && isIncomeReceivedB) return 1;
-        const priA = isIncomeReceivedA ? -1 : (Number(a.priority) !== 0 ? Number(a.priority) : 99);
-        const priB = isIncomeReceivedB ? -1 : (Number(b.priority) !== 0 ? Number(b.priority) : 99);
-        return priA - priB;
+        return (Number(a.priority) || 2) - (Number(b.priority) || 2);
     });
 }
 
@@ -5170,7 +4251,7 @@ function getBillStatus(bill) {
 }
 
 function getDaysLabel(bill) {
-    if (bill.paid) return `<svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--priority-4-color)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3,10 8,15 17,5"/></svg> ${getPaidLabel(bill)}`;
+    if (bill.paid) return `<svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="var(--priority-4-color)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3,10 8,15 17,5"/></svg> Paid`;
 
     const today = stripTime(new Date());
     const due = stripTime(parseLocalDate(getBillDisplayDate(bill)));
@@ -5241,7 +4322,7 @@ function sum(bills) {
     }, 0);
 }
 
-const BACKUP_DB_NAME = "proPaycheckBackupDB";
+const BACKUP_DB_NAME = "billTrackerBackupDB";
 const BACKUP_DB_VERSION = 1;
 const BACKUP_STORE_NAME = "backupSettings";
 const BACKUP_FILE_HANDLE_KEY = "backupFileHandle";
@@ -5349,11 +4430,11 @@ async function clearBackupDirectoryHandle() {
 
 async function showWelcomeBackupReminder() {
 
-    const hasOpenedBefore = localStorage.getItem("proPaycheckHasOpenedBefore");
+    const hasOpenedBefore = localStorage.getItem("hasOpenedBefore");
     const shownThisSession = sessionStorage.getItem("welcomeBackupShownThisSession");
 
     if (!hasOpenedBefore) {
-        localStorage.setItem("proPaycheckHasOpenedBefore", "true");
+        localStorage.setItem("hasOpenedBefore", "true");
         return;
     }
 
@@ -5412,7 +4493,7 @@ async function chooseBackupDirectory() {
 
     try {
         const directoryHandle = await window.showDirectoryPicker({
-            id: "pro-paycheck-backup-folder",
+            id: "bill-tracker-backup-folder",
             mode: "readwrite"
         });
 
@@ -5436,7 +4517,7 @@ async function chooseBackupDirectory() {
 }
 
 async function importLatestBackup() {
-    const fileName = "pro-paycheck-v1-backup.json";
+    const fileName = "bill-tracker-v1-backup.json";
     const directoryHandle = await getBackupDirectoryHandle();
 
     if (!directoryHandle) {
@@ -5507,8 +4588,8 @@ async function autoSaveToBackup() {
         }
         if (permission !== "granted") return;
 
-        const fileName = "pro-paycheck-v1-backup.json";
-        const activated = localStorage.getItem("proPaycheckActivated");
+        const fileName = "bill-tracker-v1-backup.json";
+        const activated = localStorage.getItem("billTrackerActivated");
         const exportData = activated ? { ...data, _activated: true } : data;
         const json = JSON.stringify(exportData, null, 2);
         const blob = new Blob([json], { type: "application/json" });
@@ -5525,7 +4606,7 @@ async function autoSaveToBackup() {
 }
 
 async function exportJson() {
-    const fileName = "pro-paycheck-v1-backup.json";
+    const fileName = "bill-tracker-v1-backup.json";
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
 
@@ -5639,7 +4720,7 @@ function importJson(event) {
             }
 
             if (imported._activated) {
-                localStorage.setItem("proPaycheckActivated", "true");
+                localStorage.setItem("billTrackerActivated", "true");
             }
 
             data = normalizeAppData(imported);
@@ -5667,7 +4748,7 @@ function importJson(event) {
 }
 
 async function exportCsv() {
-    const headers = ["Name", "Category", "Type", "Priority", "Frequency", "Amount", "Actual Amount", "Due Date", "Actual Date", "Paid", "Credit Card", "Notes"];
+    const headers = ["Name", "Category", "Type", "Priority", "Frequency", "Amount", "Actual Amount", "Due Date", "Actual Date", "Paid", "Notes"];
 
     const rows = data.bills.map(bill => [
         bill.name,
@@ -5680,7 +4761,6 @@ async function exportCsv() {
         getBillDisplayDate(bill),
         bill.actualDate || "",
         bill.paid ? "Yes" : "No",
-        isFromCreditAccount(bill) ? "Yes" : "No",
         bill.notes || ""
     ]);
 
@@ -5689,7 +4769,7 @@ async function exportCsv() {
         .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
-    const fileName = "pro-paycheck-data.csv";
+    const fileName = "bill-tracker-data.csv";
 
     if (window.showSaveFilePicker) {
         try {
@@ -5731,7 +4811,7 @@ async function resetAppStorage() {
 }
 
 async function clearAllData() {
-    if (!confirm("This will delete all transactions, accounts, debts, and saved transaction names from this browser. Category titles will stay. Continue?")) return;
+    if (!confirm("This will delete all bills and saved bill names from this browser. Category titles will stay. Continue?")) return;
 
     await resetAppStorage();
 
@@ -5771,7 +4851,7 @@ function saveBillNames(shouldSave = true) {
         const titleInput = column.querySelector(".bill-names-title-input");
         const title = titleInput ? titleInput.value.trim() : "";
 
-        const names = [...column.querySelectorAll("input.bill-name-input")]
+        const names = [...column.querySelectorAll(".bill-name-input")]
             .map(input => input.value.trim())
             .filter(Boolean);
 
@@ -5830,7 +4910,7 @@ function createBillNameInput(value = "") {
             row.remove();
         }
         row.setAttribute("draggable", "false");
-        saveBillNames(true);
+        saveBillNames(false);
     });
 
     input.addEventListener("keydown", (e) => {
@@ -6019,7 +5099,7 @@ function openCalBillModal(billId) {
     if (!modal || !content) return;
 
     const status = getBillStatus(bill);
-    const catIndex = bill.category === "Transfers" ? 6 : bill.category === "Investments" ? 7 : Math.max(1, data.categories.indexOf(bill.category) + 1);
+    const catIndex = Math.max(1, data.categories.indexOf(bill.category) + 1);
     const priIndex = Number(bill.priority) + 1;
 
     content.innerHTML = `
@@ -6039,7 +5119,7 @@ function openCalBillModal(billId) {
         }
 
     <span class="bill-amount">
-        ${bill.type === "refund" ? `<span class="bill-refund-icon ${["Income", "Savings"].includes(bill.category) ? "refund-out" : "refund-in"} app-tooltip-trigger">&#x27A1;<span class="app-tooltip">${bill.category === "Income" ? "Returned" : bill.category === "Savings" ? "Withdrawn" : "Received"}</span></span>` : ""}
+        ${bill.type === "refund" ? `<span class="bill-refund-icon app-tooltip-trigger">&#x27A1;<span class="app-tooltip">Refund</span></span>` : ""}
         <span class="bill-frequency-icon">
             <span class="app-tooltip-trigger">
                 ${bill.frequency === "one-time" ? "◷" : "↻"}
@@ -6049,11 +5129,10 @@ function openCalBillModal(billId) {
             </span>
         </span>
 
-        <span>${formatMoney(getBillDisplayAmount(bill))}</span>
+        <span ${bill.type === "refund" && !bill.paid ? `style="color:var(--priority-4-color);"` : ""}>${formatMoney(getBillDisplayAmount(bill))}</span>
     </span>
 </span>
                 </div>
-                ${(bill.fromAccount || bill.toAccount) ? `<div class="bill-accounts-row">${bill.fromAccount ? `<span class="bill-account-tag">⬆️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.fromAccount)?.name||'')}</span>` : ''}${bill.fromAccount && bill.toAccount ? ` → ` : ''}${bill.toAccount ? `<span class="bill-account-tag">⬇️ ${escapeHtml((data.accounts||[]).find(a=>a.id===bill.toAccount)?.name||'')}</span>` : ''}</div>` : ''}
                 <div class="bill-details-row">
                     <div class="bill-date-wrap">
                     <span class="pill app-tooltip-trigger" style="display:inline-flex; align-items:center; gap:6px;"><svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; opacity:0.4;"><rect x="2" y="5" width="16" height="13" rx="2"/><line x1="2" y1="9" x2="18" y2="9"/><line x1="7" y1="3" x2="7" y2="7"/><line x1="13" y1="3" x2="13" y2="7"/>
@@ -6122,7 +5201,7 @@ function calBillModalDelete() {
 
     if (bill.frequency === "one-time") {
 
-        if (!confirm("Delete this transaction?")) return;
+        if (!confirm("Delete this bill?")) return;
 
         data.bills = data.bills.filter(b => b.id !== bill.id);
 
@@ -6167,467 +5246,3 @@ window.editBill = editBill;
 window.deleteBill = deleteBill;
 window.chooseBackupDirectory = chooseBackupDirectory;
 window.removeBackupLocation = removeBackupLocation;
-
-// ============================================================
-// ACCOUNTS
-// ============================================================
-
-window._ACCOUNT_EMOJIS = {
-    bank: "🏦",
-    cash: "💵",
-    savings: "🐷",
-    investment: "📈",
-    credit: "💳"
-};
-
-window._ACCOUNT_LABELS = {
-    bank: "Bank",
-    cash: "Cash",
-    savings: "Savings",
-    investment: "Investment",
-    credit: "Credit card"
-};
-
-let editingAccountId = null;
-
-function openAccountModal(id) {
-    const resolvedId = (id !== undefined && id !== null && id !== "") ? id : null;
-    editingAccountId = resolvedId;
-
-    ["accountName", "accountType", "accountBalance", "accountStartDate"].forEach(elId => {
-        const el = document.getElementById(elId);
-        if (el) el.classList.remove("field-error");
-    });
-
-    const title = document.getElementById("accountModalTitle");
-    const nameEl = document.getElementById("accountName");
-    const typeEl = document.getElementById("accountType");
-    const balEl = document.getElementById("accountBalance");
-    const dateEl = document.getElementById("accountStartDate");
-
-    if (resolvedId) {
-        const acc = data.accounts.find(a => a.id === resolvedId);
-        if (!acc) return;
-        document.getElementById("accountModal")._editingId = resolvedId;
-        const col = ACC_COL_TYPES.find(c => c.type === acc.type);
-        title.textContent = col ? `${col.emoji} Edit ${col.label} Account` : "✏️ Edit Account";
-        const deleteBtn = document.getElementById("accountDeleteBtn");
-        if (deleteBtn) deleteBtn.style.display = "";
-        const balIcon = document.querySelectorAll("#accountModal .help-icon")[2];
-        if (balIcon && col) balIcon.setAttribute("data-help", col.help);
-        const nameIcon = document.getElementById("accountNameHelpIcon");
-        if (nameIcon && col) nameIcon.setAttribute("data-help", col.nameHelp);
-        nameEl.value = acc.name;
-        typeEl.value = acc.type;
-        document.getElementById("accountTypeRow").style.display = "none";
-        balEl.value = parseFloat(acc.startBalance).toFixed(2);
-        balEl.classList.add("has-value");
-        dateEl.value = acc.startDate;
-        if (acc.startDate) {
-            dateEl.classList.add("has-value");
-        } else {
-            dateEl.classList.remove("has-value");
-        }
-    } else {
-        const deleteBtn = document.getElementById("accountDeleteBtn");
-        if (deleteBtn) deleteBtn.style.display = "none";
-        title.textContent = "🏦 Add account";
-        nameEl.value = "";
-        typeEl.innerHTML = `<option value="">Select type</option>
-                <option value="cash">💵 Cash</option>
-                <option value="bank">🏦 Bank</option>
-                <option value="savings">🐷 Savings</option>
-                <option value="credit">💳 Credit card</option>
-                <option value="investment">📈 Investment</option>`;
-        balEl.value = "";
-        balEl.placeholder = "0.00";
-        balEl.classList.remove("has-value");
-        dateEl.classList.remove("has-value");
-        dateEl.value = "";
-        dateEl.type = "text";
-        dateEl.type = "date";
-        const tip = document.getElementById("balanceCreditTip");
-        if (tip) tip.style.display = "none";
-    }
-
-    balEl.onfocus = function() {
-        const type = typeEl.value || (resolvedId ? data.accounts.find(a => a.id === resolvedId)?.type : "");
-        if (type === "credit") {
-            let tip = document.getElementById("balanceCreditTip");
-            if (!tip) {
-                tip = document.createElement("div");
-                tip.id = "balanceCreditTip";
-                tip.style.cssText = "position:absolute;z-index:9999;background:var(--card);border:1.5px solid var(--red-overdue);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--red-overdue);max-width:260px;box-shadow:0 4px 12px rgba(0,0,0,0.12);pointer-events:none;";
-                tip.innerHTML = "⚠️ Enter a <strong>negative</strong> balance if you have debt (e.g. -500). Enter a <strong>positive</strong> balance if you overpaid.";
-                document.body.appendChild(tip);
-            }
-            const rect = balEl.getBoundingClientRect();
-            tip.style.display = "block";
-            tip.style.left = rect.left + "px";
-            tip.style.top = (rect.top + window.scrollY - tip.offsetHeight - 8) + "px";
-        }
-    };
-
-    balEl.onblur = function() {
-        const tip = document.getElementById("balanceCreditTip");
-        if (tip) tip.style.display = "none";
-    };
-
-    typeEl.onchange = function() {};
-
-    balEl.removeEventListener("focus", balEl._focusHandler);
-    balEl.onblur = function() {
-    const tip = document.getElementById("balanceCreditTip");
-    if (tip) tip.style.display = "none";
-
-    if (this.value === "" || isNaN(parseFloat(this.value))) {
-        this.value = "";
-    } else {
-        this.value = parseFloat(this.value).toFixed(2);
-    }
-};
-
-    document.getElementById("accountModal").classList.add("active");
-    nameEl.focus();
-}
-
-function closeAccountModal() {
-    document.getElementById("accountModal").classList.remove("active");
-    document.getElementById("accountModal").classList.remove("from-col");
-    document.getElementById("accountTypeRow").style.display = "";
-    editingAccountId = null;
-}
-
-function saveAccount() {
-    const name = document.getElementById("accountName").value.trim();
-    const type = document.getElementById("accountType").value;
-    const startBalance = parseFloat(document.getElementById("accountBalance").value) || 0;
-    const startDate = document.getElementById("accountStartDate").value;
-
-    const nameEl = document.getElementById("accountName");
-    const typeEl = document.getElementById("accountType");
-    const balEl2 = document.getElementById("accountBalance");
-    const dateEl2 = document.getElementById("accountStartDate");
-    [nameEl, typeEl, balEl2, dateEl2].forEach(el => el.classList.remove("field-error"));
-
-    let hasError = false;
-    if (!name) { nameEl.classList.add("field-error"); nameEl.focus(); hasError = true; }
-    if (!type) { typeEl.classList.add("field-error"); if (!hasError) typeEl.focus(); hasError = true; }
-    if (balEl2.value === "") { balEl2.classList.add("field-error"); if (!hasError) balEl2.focus(); hasError = true; }
-    if (!dateEl2.value) { dateEl2.classList.add("field-error"); if (!hasError) dateEl2.focus(); hasError = true; }
-    if (hasError) return;
-
-    if (editingAccountId) {
-        const idx = data.accounts.findIndex(a => a.id === editingAccountId);
-        if (idx !== -1) {
-            data.accounts[idx] = { ...data.accounts[idx], name, type, startBalance, startDate };
-        }
-    } else {
-        data.accounts.push({
-            id: crypto.randomUUID(),
-            name,
-            type,
-            startBalance,
-            startDate
-        });
-    }
-
-    saveData();
-    closeAccountModal();
-    renderAccountsCols();
-}
-
-function deleteAccount(id) {
-    const acc = data.accounts.find(a => a.id === id);
-    if (!acc) return;
-
-    const usedInBills = data.bills.some(b => b.fromAccount === id || b.toAccount === id);
-    const warningMsg = usedInBills
-        ? `"${acc.name}" is used in one or more transactions. Deleting it will remove it from those transactions.\n\nAre you sure?`
-        : `Delete "${acc.name}"?`;
-
-    if (!confirm(warningMsg)) return;
-
-    data.accounts = data.accounts.filter(a => a.id !== id);
-
-    if (usedInBills) {
-        data.bills = data.bills.map(b => ({
-            ...b,
-            fromAccount: b.fromAccount === id ? null : b.fromAccount,
-            toAccount: b.toAccount === id ? null : b.toAccount
-        }));
-    }
-
-    saveData();
-    renderAccountsCols();
-}
-
-function deleteAccountFromModal() {
-    const id = editingAccountId;
-    if (!id) return;
-    const usedInBills = data.bills.some(b => b.fromAccount === id || b.toAccount === id);
-    const msg = usedInBills
-        ? "This account is used in existing transactions. Deleting it will remove the account link from those transactions. Continue?"
-        : "Delete this account?";
-    if (!confirm(msg)) return;
-    if (usedInBills) data.bills = data.bills.map(b => ({
-        ...b,
-        fromAccount: b.fromAccount === id ? null : b.fromAccount,
-        toAccount: b.toAccount === id ? null : b.toAccount
-    }));
-    data.accounts = data.accounts.filter(a => a.id !== id);
-    saveData();
-    closeAccountModal();
-    renderAccountsCols();
-}
-
-window.deleteAccountFromModal = deleteAccountFromModal;
-window.openAccountModal = openAccountModal;
-
-function openDebtModal(id = null) {
-    document.getElementById("debtName").value = "";
-    document.getElementById("debtType").value = "";
-    document.getElementById("debtLinkedAccountRow").style.display = "none";
-    document.getElementById("debtLinkedAccountHint").style.display = "none";
-    document.getElementById("debtDeleteBtn").style.display = "none";
-    document.getElementById("debtModalTitle").textContent = "💳 Add Debt";
-    document.getElementById("debtModal")._editingId = null;
-
-    if (id) {
-        const debt = data.debts.find(d => d.id === id);
-        if (!debt) return;
-        document.getElementById("debtModalTitle").textContent = "✏️ Edit Debt";
-        document.getElementById("debtName").value = debt.name;
-        document.getElementById("debtType").value = debt.type;
-        document.getElementById("debtDeleteBtn").style.display = "";
-        document.getElementById("debtModal")._editingId = id;
-        updateDebtTypeFields();
-        if (debt.linkedAccountId) document.getElementById("debtLinkedAccount").value = debt.linkedAccountId;
-    }
-
-    document.getElementById("debtModal").classList.add("active");
-}
-
-function closeDebtModal() {
-    document.getElementById("debtModal").classList.remove("active");
-    renderDebts();
-}
-
-function updateDebtTypeFields() {
-    const type = document.getElementById("debtType").value;
-    const row = document.getElementById("debtLinkedAccountRow");
-    const hint = document.getElementById("debtLinkedAccountHint");
-    const select = document.getElementById("debtLinkedAccount");
-
-    if (type === "credit_card") {
-        row.style.display = "";
-        const cards = (data.accounts || []).filter(a => a.type === "credit");
-        if (cards.length === 0) {
-            select.innerHTML = "";
-            hint.style.display = "";
-        } else {
-            hint.style.display = "none";
-            select.innerHTML = `<option value="">Select credit card</option>` +
-                cards.map(a => `<option value="${a.id}">💳 ${escapeHtml(a.name)}</option>`).join("");
-        }
-    } else {
-        row.style.display = "none";
-        hint.style.display = "none";
-    }
-}
-
-function saveDebt() {
-    const name = document.getElementById("debtName").value.trim();
-    const type = document.getElementById("debtType").value;
-    const linkedAccountId = type === "credit_card" ? (document.getElementById("debtLinkedAccount").value || null) : null;
-
-    if (!name) { document.getElementById("debtName").classList.add("field-error"); return; }
-    if (!type) { document.getElementById("debtType").classList.add("field-error"); return; }
-
-    document.getElementById("debtName").classList.remove("field-error");
-    document.getElementById("debtType").classList.remove("field-error");
-
-    const editingId = document.getElementById("debtModal")._editingId;
-    if (editingId) {
-        data.debts = data.debts.map(d => d.id === editingId ? { ...d, name, type, linkedAccountId } : d);
-    } else {
-        data.debts.push({ id: crypto.randomUUID(), name, type, linkedAccountId });
-    }
-
-    saveData();
-    closeDebtModal();
-}
-
-function deleteDebtFromModal() {
-    const id = document.getElementById("debtModal")._editingId;
-    if (!id) return;
-    const usedInBills = data.bills.some(b => b.debtId === id);
-    const msg = usedInBills
-        ? "This debt is used in existing transactions. Deleting it will remove the debt link from those transactions. Continue?"
-        : "Delete this debt?";
-    if (!confirm(msg)) return;
-    if (usedInBills) data.bills = data.bills.map(b => b.debtId === id ? { ...b, debtId: null } : b);
-    data.debts = data.debts.filter(d => d.id !== id);
-    saveData();
-    closeDebtModal();
-}
-
-function renderDebts() {
-    const container = document.getElementById("debtsList");
-    if (!container) return;
-    const typeEmoji = { credit_card: "💳", loan: "🏦", other: "📋" };
-    container.innerHTML = (data.debts || []).map(d => {
-        return `<div class="bill-name-row" draggable="false" data-id="${d.id}" onclick="openDebtModal('${d.id}')">
-            <span class="bill-name-handle"><svg width="10" height="14" viewBox="0 0 10 14" fill="none"><circle cx="3" cy="2.5" r="1.2" fill="#aaa"/><circle cx="7" cy="2.5" r="1.2" fill="#aaa"/><circle cx="3" cy="7" r="1.2" fill="#aaa"/><circle cx="7" cy="7" r="1.2" fill="#aaa"/><circle cx="3" cy="11.5" r="1.2" fill="#aaa"/><circle cx="7" cy="11.5" r="1.2" fill="#aaa"/></svg></span>
-            <span class="bill-name-input debt-name-span">${typeEmoji[d.type] || "📋"} ${escapeHtml(d.name)}</span>
-        </div>`;
-    }).join("");
-
-    container.querySelectorAll(".bill-name-row[data-id]").forEach(item => {
-        const handle = item.querySelector(".bill-name-handle");
-        handle.addEventListener("mousedown", () => item.setAttribute("draggable", "true"));
-        item.addEventListener("mouseup", () => item.setAttribute("draggable", "false"));
-        item.addEventListener("dragstart", e => {
-            window._debtDragSrc = item;
-            item.classList.add("dragging");
-            e.dataTransfer.effectAllowed = "move";
-        });
-        item.addEventListener("dragend", () => {
-            window._debtDragSrc = null;
-            item.classList.remove("dragging");
-            container.querySelectorAll(".bill-name-row").forEach(i => i.classList.remove("drag-over"));
-            const ids = [...container.querySelectorAll(".bill-name-row[data-id]")].map(i => i.dataset.id);
-            if (ids.length > 0) {
-                data.debts = ids.map(id => data.debts.find(d => d.id === id)).filter(Boolean);
-                saveData();
-            }
-        });
-        item.addEventListener("dragover", e => {
-            e.preventDefault();
-            if (window._debtDragSrc && window._debtDragSrc !== item) item.classList.add("drag-over");
-        });
-        item.addEventListener("dragleave", () => item.classList.remove("drag-over"));
-        item.addEventListener("drop", e => {
-            e.preventDefault();
-            item.classList.remove("drag-over");
-            if (!window._debtDragSrc || window._debtDragSrc === item) return;
-            const items = [...container.querySelectorAll(".bill-name-item")];
-            const srcIdx = items.indexOf(window._debtDragSrc);
-            const tgtIdx = items.indexOf(item);
-            if (srcIdx < tgtIdx) container.insertBefore(window._debtDragSrc, item.nextSibling);
-            else container.insertBefore(window._debtDragSrc, item);
-        });
-    });
-}
-
-function scrollToAccounts() {
-    const el = document.getElementById("accountsColsGrid");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
-}
-
-window.openDebtModal = openDebtModal;
-window.closeDebtModal = closeDebtModal;
-window.updateDebtTypeFields = updateDebtTypeFields;
-window.saveDebt = saveDebt;
-window.deleteDebtFromModal = deleteDebtFromModal;
-window.scrollToAccounts = scrollToAccounts;
-window.closeAccountModal = closeAccountModal;
-window.saveAccount = saveAccount;
-window.deleteAccount = deleteAccount;
-
-
-// ============================================================
-// ACCOUNTS COLUMNS VIEW
-// ============================================================
-
-function renderAccountsCols() {
-    const container = document.getElementById("accountsColsGrid");
-    if (!container) return;
-
-    container.innerHTML = ACC_COL_TYPES.map(col => {
-        const accounts = (data.accounts || []).filter(a => a.type === col.type);
-        const items = accounts.map(acc => `
-            <div class="acc-col-item" draggable="false" data-id="${acc.id}" onclick="openAccountModal('${acc.id}')">
-                <span class="acc-col-item-handle"><svg width="10" height="14" viewBox="0 0 10 14" fill="none"><circle cx="3" cy="2.5" r="1.2" fill="#aaa"/><circle cx="7" cy="2.5" r="1.2" fill="#aaa"/><circle cx="3" cy="7" r="1.2" fill="#aaa"/><circle cx="7" cy="7" r="1.2" fill="#aaa"/><circle cx="3" cy="11.5" r="1.2" fill="#aaa"/><circle cx="7" cy="11.5" r="1.2" fill="#aaa"/></svg></span>
-                <span class="acc-col-item-name">${escapeHtml(acc.name)}</span>
-            </div>`).join("");
-
-        return `
-        <div class="acc-col ${col.cls}" data-type="${col.type}">
-            <div class="acc-col-title"><span class="help-icon" data-help-title="${col.emoji} ${col.label}" data-help="${col.help}" style="cursor:pointer;">${col.emoji}</span> ${col.label}</div>
-            <div class="acc-col-items" data-type="${col.type}">${items}</div>
-            <button class="acc-col-add" onclick="openAccountModalWithType('${col.type}')">+ Add account</button>
-        </div>`;
-    }).join("");
-
-    initAccountColsDrag();
-}
-
-function openAccountModalWithType(type) {
-    openAccountModal(null);
-    const col = ACC_COL_TYPES.find(c => c.type === type);
-    const typeEl = document.getElementById("accountType");
-    if (typeEl) typeEl.value = type;
-    document.getElementById("accountModal").classList.add("from-col");
-    document.getElementById("accountTypeRow").style.display = "none";
-    if (col) {
-        const title = document.getElementById("accountModalTitle");
-        if (title) title.textContent = `${col.emoji} Add ${col.label} Account`;
-        const balIcon = document.querySelectorAll("#accountModal .help-icon")[2];
-        if (balIcon) balIcon.setAttribute("data-help", col.help);
-        const nameIcon = document.getElementById("accountNameHelpIcon");
-        if (nameIcon) nameIcon.setAttribute("data-help", col.nameHelp);
-        const nameEl = document.getElementById("accountName");
-        if (nameEl) nameEl.placeholder = col.namePlaceholder;
-    }
-}
-
-function initAccountColsDrag() {
-    const container = document.getElementById("accountsColsGrid");
-    if (!container) return;
-
-    let dragSrc = null;
-
-    container.querySelectorAll(".acc-col-item").forEach(item => {
-        const handle = item.querySelector(".acc-col-item-handle");
-        if (handle) {
-            handle.addEventListener("mousedown", () => item.setAttribute("draggable", "true"));
-            item.addEventListener("mouseup", () => item.setAttribute("draggable", "false"));
-        }
-        item.addEventListener("dragstart", function() {
-            dragSrc = this;
-            this.classList.add("dragging");
-        });
-        item.addEventListener("dragend", function() {
-            this.classList.remove("dragging");
-            this.setAttribute("draggable", "false");
-            dragSrc = null;
-        });
-        item.addEventListener("dragover", function(e) {
-            e.preventDefault();
-        });
-        item.addEventListener("drop", function(e) {
-            e.preventDefault();
-            if (!dragSrc || dragSrc === this) return;
-
-            const srcId = dragSrc.dataset.id;
-            const tgtId = this.dataset.id;
-            const srcType = dragSrc.closest(".acc-col-items").dataset.type;
-            const tgtType = this.closest(".acc-col-items").dataset.type;
-
-            if (srcType !== tgtType) return;
-
-            const srcIdx = data.accounts.findIndex(a => a.id === srcId);
-            const tgtIdx = data.accounts.findIndex(a => a.id === tgtId);
-            if (srcIdx === -1 || tgtIdx === -1) return;
-
-            const moved = data.accounts.splice(srcIdx, 1)[0];
-            data.accounts.splice(tgtIdx, 0, moved);
-
-            saveData();
-            renderAccountsCols();
-        });
-    });
-}
-
-window.openAccountModalWithType = openAccountModalWithType;
