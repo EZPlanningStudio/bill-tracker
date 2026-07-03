@@ -1767,19 +1767,26 @@
        margin-bottom: 6px;
    }
 
+   .bill-info {
+       min-width: 0;
+   }
+
    .bill-title-inline {
        font-size: 16px;
        font-weight: 900;
        line-height: 1.2;
-       overflow: visible;
+       overflow: hidden;
+       text-overflow: ellipsis;
        white-space: nowrap;
-       flex-shrink: 1;
+       flex: 1 1 0;
+       min-width: 0;
        position: relative;
    }
 
    .bill-title-text {
        display: block;
-       overflow: visible;
+       overflow: hidden;
+       text-overflow: ellipsis;
        white-space: nowrap;
    }
 
@@ -1818,6 +1825,11 @@
        display: inline-flex;
        align-items: center;
        white-space: nowrap;
+   }
+
+   .bill-meta .bill-title-inline,
+   .bill-meta .bill-title-text {
+       display: block;
    }
 
    .bill-meta {
@@ -4468,6 +4480,7 @@
            position: absolute;
            left: 0;
            top: 0;
+           z-index: 20;
        }
 
        .mobile-menu-btn svg {
@@ -4791,6 +4804,10 @@
 
        #addBillModal.modal {
            align-items: center;
+       }
+
+       #addBillModal .form-grid {
+           grid-template-columns: repeat(2, 1fr);
        }
 
        .bill-card {
