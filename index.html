@@ -51,6 +51,26 @@
             <span class="app-tooltip">Redo</span>
           </button>
         </div>
+        <div class="sidebar-top-bar-actions sidebar-backup-quick">
+          <button class="history-btn app-tooltip-trigger" id="quickExportBtn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span class="app-tooltip">Export Backup</span>
+          </button>
+          <button class="history-btn app-tooltip-trigger" id="quickImportBtn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span class="app-tooltip">Import Backup</span>
+          </button>
+        </div>
         <button id="mobileCloseBtn" class="modal-close-btn" type="button">
           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9"
             stroke-linecap="round" stroke-linejoin="round">
@@ -114,11 +134,10 @@
           <div class="menu-group">
             <div class="menu-heading dashboard">DASHBOARD</div>
             <button data-section="monthly" class="menu-link app-tooltip-trigger">
-              <svg class="menu-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+              <svg class="menu-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="12" width="4" height="6" rx="1" />
-                <rect x="8" y="8" width="4" height="10" rx="1" />
-                <rect x="14" y="4" width="4" height="14" rx="1" />
+                <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+                <path d="M22 12A10 10 0 0 0 12 2v10z"/>
               </svg>
               <span class="menu-label">Monthly Insights</span>
               <span class="app-tooltip">Monthly Insights</span>
@@ -126,8 +145,9 @@
             <button data-section="yearly" class="menu-link app-tooltip-trigger">
               <svg class="menu-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor"
                 stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="2,16 6,10 11,13 18,4" />
-                <circle cx="18" cy="4" r="2" fill="currentColor" stroke="none" />
+                <rect x="2" y="12" width="4" height="6" rx="1" />
+                <rect x="8" y="8" width="4" height="10" rx="1" />
+                <rect x="14" y="4" width="4" height="14" rx="1" />
               </svg>
               <span class="menu-label">Yearly Overview</span>
               <span class="app-tooltip">Yearly Overview</span>
@@ -144,6 +164,15 @@
               </svg>
               <span class="menu-label">Quick Start Guide</span>
               <span class="app-tooltip">Quick Start Guide</span>
+            </button>
+            <button data-section="contact" class="menu-link app-tooltip-trigger">
+              <svg class="menu-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="10" cy="8.5" rx="8" ry="6" />
+                <path d="M7 14 L5 17 L9.5 14.3" />
+              </svg>
+              <span class="menu-label">Contact</span>
+              <span class="app-tooltip">Contact</span>
             </button>
             <button data-section="settings" class="menu-link app-tooltip-trigger">
               <svg class="menu-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor"
@@ -260,7 +289,10 @@
                 </select>
               </div>
             </div>
-            <button class="btn add-bill-btn" id="addBillBtn">+ Add Bill</button>
+            <div class="toolbar-actions">
+              <span class="help-icon" data-help-title="📋 Bill List" data-help="&lt;strong&gt;Step 1 — Add and browse&lt;/strong&gt;&lt;br&gt;Every bill — across all your categories (Insurance, Subscriptions, Utilities, Housing &amp; Loans, Other Bills) — shows up here, sorted by date. Use &quot;+ Add Bill&quot; to create a new one.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Filter what you see&lt;/strong&gt;&lt;br&gt;Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, category, or a specific month/year. Click &quot;All&quot; to reset every filter at once.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — Manage each bill&lt;/strong&gt;&lt;br&gt;Click the checkmark button to mark a bill Paid or Unpaid, the pencil to Edit it, or the trash icon to delete it. For a recurring bill, deleting gives you the choice between removing just that one occurrence or the entire series.">ℹ️</span>
+              <button class="btn add-bill-btn" id="addBillBtn">+ Add Bill</button>
+            </div>
           </div>
 
           <div class="filters-mobile-bar" id="filtersMobileBar">
@@ -269,6 +301,7 @@
                 data-help="Use filters to narrow down your bills by status, priority, category, month or year.">🎛️</span>
               Filters
             </button>
+            <span class="help-icon" data-help-title="📋 Bill List" data-help="&lt;strong&gt;Step 1 — Add and browse&lt;/strong&gt;&lt;br&gt;Every bill — across all your categories (Insurance, Subscriptions, Utilities, Housing &amp; Loans, Other Bills) — shows up here, sorted by date. Use &quot;+ Add Bill&quot; to create a new one.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Filter what you see&lt;/strong&gt;&lt;br&gt;Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, category, or a specific month/year. Click &quot;All&quot; to reset every filter at once.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — Manage each bill&lt;/strong&gt;&lt;br&gt;Click the checkmark button to mark a bill Paid or Unpaid, the pencil to Edit it, or the trash icon to delete it. For a recurring bill, deleting gives you the choice between removing just that one occurrence or the entire series.">ℹ️</span>
             <button class="btn add-bill-btn" id="addBillBtnMobile">+ Add Bill</button>
           </div>
 
@@ -367,11 +400,11 @@
 
               <label>
                 <span style="display:inline-flex; align-items:center; gap:4px;"><span class="help-icon"
-                    data-help-title="💰 Amount"
-                    data-help="Enter the planned bill amount. This amount is used as both the Planned Amount and Paid Amount unless a different Paid Amount is entered later in the Edit section. If a Paid Amount is entered, Amount remains the planned value while the Paid Amount is used as the actual amount paid in reports and summaries.">💰</span>Amount</span>
+                    data-help-title="💰 Planned Amount"
+                    data-help="Enter the amount you're planning for this bill. Always enter a positive number — the transaction type (Payment, Refund) determines the direction of the money.&lt;br&gt;&lt;br&gt;Making a partial or extra payment toward something you already planned? Enter &lt;strong&gt;0&lt;/strong&gt; here instead of a new planned amount — a &quot;New/Paid Amount&quot; field will appear for the real amount, without inflating your planned total.&lt;br&gt;&lt;br&gt;Wasn't planned at all? Enter &lt;strong&gt;0&lt;/strong&gt; here too — put the real amount in New/Paid Amount below instead of guessing a planned figure.&lt;br&gt;&lt;br&gt;Once a real payment is recorded, this field locks — it stays as your original plan; only the New/Paid Amount can change from then on.">💰</span>Planned Amount</span>
                 <div class="amount-input-wrap">
                   <span class="currency-symbol-overlay" id="billAmountCurrency"></span>
-                  <input id="billAmount" type="number" min="0" step="0.01" placeholder="0.00" />
+                  <input id="billAmount" type="number" min="0" step="0.01" placeholder="0.00" onblur="updateBillPaidAmountVisibility()" />
                 </div>
               </label>
 
@@ -393,7 +426,7 @@
               <label id="billPaidAmountWrap" style="display:none;">
                 <span style="display:inline-flex; align-items:center; gap:4px;"><span class="help-icon"
                     data-help-title="💰 New/Paid Amount"
-                    data-help="Enter a New/Paid Amount if the bill amount changes or the actual paid amount is different from the planned Amount. This value is used in the app display and future reports while the original Amount stays saved as the planned value.">💰</span>New/Paid
+                    data-help="Enter a New/Paid Amount if the bill amount changes or the actual paid amount is different from the planned Amount. This value is used in the app display and future reports while the original Amount stays saved as the planned value.&lt;br&gt;&lt;br&gt;If Planned Amount is 0, enter the real amount of an unplanned bill here.">💰</span>New/Paid
                   Amount</span>
                 <div class="amount-input-wrap">
                   <span class="currency-symbol-overlay" id="billPaidAmountCurrency"></span>
@@ -486,7 +519,10 @@
                 </select>
               </div>
             </div>
-            <button class="btn add-bill-btn" id="calAddBillBtn">+ Add Bill</button>
+            <div class="toolbar-actions">
+              <span class="help-icon" data-help-title="🗓️ Calendar" data-help="&lt;strong&gt;Step 1 — Browse and add&lt;/strong&gt;&lt;br&gt;Each day shows its bills as small colored chips, right in the calendar. Double-click an empty spot on any day to add a new bill pre-filled with that date, or use &quot;+ Add Bill&quot; for any date.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Filter what you see&lt;/strong&gt;&lt;br&gt;Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, or category. There's no month/year filter here — you navigate between months directly on the calendar.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — View and edit&lt;/strong&gt;&lt;br&gt;Click any bill chip for a quick popup — mark it Paid/Unpaid instantly, tap the pencil to edit, or the trash to delete. On mobile, tap a day to see its bills in a panel, or long-press an empty spot to add a new one for that date.">ℹ️</span>
+              <button class="btn add-bill-btn" id="calAddBillBtn">+ Add Bill</button>
+            </div>
           </div>
 
           <div class="filters-mobile-bar" id="calFiltersMobileBar">
@@ -495,6 +531,7 @@
                 data-help="Use filters to narrow down your bills by status, priority, category, month or year.">🎛️</span>
               Filters
             </button>
+            <span class="help-icon" data-help-title="🗓️ Calendar" data-help="&lt;strong&gt;Step 1 — Browse and add&lt;/strong&gt;&lt;br&gt;Each day shows its bills as small colored chips, right in the calendar. Double-click an empty spot on any day to add a new bill pre-filled with that date, or use &quot;+ Add Bill&quot; for any date.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Filter what you see&lt;/strong&gt;&lt;br&gt;Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, or category. There's no month/year filter here — you navigate between months directly on the calendar.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — View and edit&lt;/strong&gt;&lt;br&gt;Click any bill chip for a quick popup — mark it Paid/Unpaid instantly, tap the pencil to edit, or the trash to delete. On mobile, tap a day to see its bills in a panel, or long-press an empty spot to add a new one for that date.">ℹ️</span>
             <button class="btn add-bill-btn" id="calAddBillBtnMobile">+ Add Bill</button>
           </div>
 
@@ -535,6 +572,7 @@
 
       <section id="section-monthly" class="section">
         <div class="panel">
+          <span class="help-icon page-corner-info-icon" data-help-title="📊 Monthly Insights" data-help="&lt;strong&gt;Step 1 — Browse by month&lt;/strong&gt;&lt;br&gt;Use the month/year dropdown (click the title) to jump between months. Each month includes every bill dated inside it, across all your bill categories.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Understand your breakdown&lt;/strong&gt;&lt;br&gt;The &quot;Month Breakdown&quot; card shows planned vs paid totals for the month, plus a category-by-category table. Expected vs Paid also appears inside each category card below.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — Set a budget (optional)&lt;/strong&gt;&lt;br&gt;Each category card has its own amount box, in your chosen currency — type in a target amount for that category, just for this month, and the card tracks how much more you can plan, whether it's fully allocated, or if you've gone over.">ℹ️</span>
           <div id="categoryBreakdown" class="category-grid"></div>
           <div id="monthlyNotes" class="monthly-notes-wrap"></div>
         </div>
@@ -542,6 +580,7 @@
 
       <section id="section-yearly" class="section">
         <div class="panel">
+          <span class="help-icon page-corner-info-icon" data-help-title="📈 Yearly Overview" data-help="&lt;strong&gt;Step 1 — Browse by year&lt;/strong&gt;&lt;br&gt;Use the year dropdown (click the title) to switch years. The whole year's bills get grouped by category.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 2 — Understand your breakdown&lt;/strong&gt;&lt;br&gt;The &quot;Year Breakdown&quot; card shows total planned vs paid for the year, plus a category-by-category table.&lt;br&gt;&lt;br&gt;&lt;strong&gt;Step 3 — Explore monthly trends&lt;/strong&gt;&lt;br&gt;Each category card below shows a bar chart of that category's monthly trend across the year, plus a month-by-month Expected/Paid table — useful for spotting patterns over time.">ℹ️</span>
           <div id="categoryBreakdownYearly" class="category-grid"></div>
           <div id="yearlyNotes" class="monthly-notes-wrap"></div>
         </div>
@@ -693,6 +732,41 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="panel">
+          <p class="qs-text">Don't need this guide anymore? <button class="acc-link-btn" onclick="hideMenuItem('quickstart')">Hide this guide from the menu</button> — you can always bring it back from Settings.</p>
+        </div>
+
+      </section>
+
+      <section id="section-contact" class="section">
+
+        <div class="panel">
+          <h2>💬 Need Help?</h2>
+          <p class="qs-text">If you have any questions or run into any issues, don't hesitate to reach out — I'm happy
+            to help!</p>
+          <div class="qs-info-grid">
+            <div class="qs-info-card qs-mint">
+              <div class="qs-info-icon">📧</div>
+              <div>
+                <div class="qs-info-title">Email</div>
+                <div class="qs-info-desc"><a href="mailto:daniellanechita@gmail.com">daniellanechita@gmail.com</a></div>
+              </div>
+            </div>
+            <div class="qs-info-card qs-yellow">
+              <div class="qs-info-icon">🛍️</div>
+              <div>
+                <div class="qs-info-title">Etsy Shop</div>
+                <div class="qs-info-desc"><a href="https://www.etsy.com/shop/EzPlanningStudio"
+                    target="_blank">EzPlanningStudio</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <p class="qs-text">Don't need this page in your menu? <button class="acc-link-btn" onclick="hideMenuItem('contact')">Hide this page from the menu</button> — you can always bring it back from Settings.</p>
         </div>
 
       </section>
@@ -879,6 +953,17 @@
             </label>
 
           </div>
+        </div>
+
+        <h3 class="settings-app-divider">
+          <span class="help-icon" data-help-title="⚙️ App Settings"
+            data-help="Preferences about the app itself — like which pages show in the menu — separate from your budget data above.">⚙️</span>
+          App Settings
+        </h3>
+
+        <div class="panel">
+          <div class="menu-vis-heading">Menu Visibility</div>
+          <div id="menuVisibilitySettings"></div>
         </div>
       </section>
 
@@ -1078,6 +1163,107 @@
     </div>
 </div>
 
+<!-- Monthly Insights Info Modal -->
+<div class="modal" id="monthlyInfoModal">
+    <div class="modal-box" style="max-width:520px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h2 style="margin:0;">📊 Monthly Insights Setup</h2>
+            <button class="modal-close-btn" onclick="closeMonthlyInfoModal()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+            </button>
+        </div>
+        <div class="modal-info-body">
+            <p>See your bills broken down by calendar month — here's how it works.</p>
+            <p><strong>Step 1 — Browse by month</strong><br>
+            Use the month/year dropdown (click the title) to jump between months. Each month includes every bill dated inside it, across all your bill categories.</p>
+            <p><strong>Step 2 — Understand your breakdown</strong><br>
+            The "Month Breakdown" card (top) shows planned vs paid totals for the month, plus a category-by-category table. Expected vs Paid also appears inside each category card below.</p>
+            <p><strong>Step 3 — Set a budget (optional)</strong><br>
+            Each category card has its own amount box, in your chosen currency — type in a target amount for that category, just for this month. Once you do, the card tracks how much more you can plan, whether it's fully allocated, or if you've gone over.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn soft" onclick="closeMonthlyInfoModal()">Close</button>
+            <button class="btn primary" onclick="closeMonthlyInfoModal(true)">Don't show again</button>
+        </div>
+    </div>
+</div>
+
+<!-- Yearly Overview Info Modal -->
+<div class="modal" id="yearlyInfoModal">
+    <div class="modal-box" style="max-width:520px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h2 style="margin:0;">📈 Yearly Overview Setup</h2>
+            <button class="modal-close-btn" onclick="closeYearlyInfoModal()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+            </button>
+        </div>
+        <div class="modal-info-body">
+            <p>See your whole year at a glance — here's how it works.</p>
+            <p><strong>Step 1 — Browse by year</strong><br>
+            Use the year dropdown (click the title) to switch years. The whole year's bills get grouped by category.</p>
+            <p><strong>Step 2 — Understand your breakdown</strong><br>
+            The "Year Breakdown" card (top) shows total planned vs paid for the year, plus a category-by-category table.</p>
+            <p><strong>Step 3 — Explore monthly trends</strong><br>
+            Each category card below shows a bar chart of that category's monthly trend across the year, plus a month-by-month Expected/Paid table — useful for spotting patterns over time.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn soft" onclick="closeYearlyInfoModal()">Close</button>
+            <button class="btn primary" onclick="closeYearlyInfoModal(true)">Don't show again</button>
+        </div>
+    </div>
+</div>
+
+<!-- Calendar Info Modal -->
+<div class="modal" id="calendarInfoModal">
+    <div class="modal-box" style="max-width:520px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h2 style="margin:0;">🗓️ Calendar Setup</h2>
+            <button class="modal-close-btn" onclick="closeCalendarInfoModal()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+            </button>
+        </div>
+        <div class="modal-info-body">
+            <p>See your bills laid out day by day — here's how it works.</p>
+            <p><strong>Step 1 — Browse and add</strong><br>
+            Each day shows its bills as small colored chips, right in the calendar. Double-click an empty spot on any day to add a new bill pre-filled with that date, or use "+ Add Bill" for any date.</p>
+            <p><strong>Step 2 — Filter what you see</strong><br>
+            Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, or category. There's no month/year filter here — you navigate between months directly on the calendar.</p>
+            <p><strong>Step 3 — View and edit</strong><br>
+            Click any bill chip for a quick popup — mark it Paid/Unpaid instantly, tap the pencil to edit, or the trash to delete. On mobile, tap a day to see its bills in a panel, or long-press an empty spot to add a new one for that date.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn soft" onclick="closeCalendarInfoModal()">Close</button>
+            <button class="btn primary" onclick="closeCalendarInfoModal(true)">Don't show again</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bill List Info Modal -->
+<div class="modal" id="transactionListInfoModal">
+    <div class="modal-box" style="max-width:520px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h2 style="margin:0;">📋 Bill List Setup</h2>
+            <button class="modal-close-btn" onclick="closeTransactionListInfoModal()">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg>
+            </button>
+        </div>
+        <div class="modal-info-body">
+            <p>See and manage every bill you've added — here's how it works.</p>
+            <p><strong>Step 1 — Add and browse</strong><br>
+            Every bill — across all your categories (Insurance, Subscriptions, Utilities, Housing & Loans, Other Bills) — shows up here, sorted by date. Use "+ Add Bill" to create a new one.</p>
+            <p><strong>Step 2 — Filter what you see</strong><br>
+            Use the Filters bar to narrow down by status (Unpaid/Paid/Overdue), priority, category, or a specific month/year. Click "All" to reset every filter at once.</p>
+            <p><strong>Step 3 — Manage each bill</strong><br>
+            Click the checkmark button to mark a bill Paid or Unpaid, the pencil to Edit it, or the trash icon to delete it. For a recurring bill, deleting gives you the choice between removing just that one occurrence or the entire series.</p>
+        </div>
+        <div class="modal-actions">
+            <button class="btn soft" onclick="closeTransactionListInfoModal()">Close</button>
+            <button class="btn primary" onclick="closeTransactionListInfoModal(true)">Don't show again</button>
+        </div>
+    </div>
+</div>
+
+<div class="help-icon-tooltip" id="helpIconTooltip">Click for details</div>
 
 </body>
 

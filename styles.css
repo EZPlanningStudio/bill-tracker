@@ -1145,6 +1145,16 @@
        box-shadow: var(--shadow);
        padding: 20px;
        margin-bottom: 18px;
+       position: relative;
+   }
+
+   .page-corner-info-icon {
+       position: absolute;
+       top: 5px;
+       right: 4px;
+       font-size: 15px;
+       cursor: pointer;
+       z-index: 5;
    }
 
    .panel h2 {
@@ -1473,6 +1483,14 @@
        flex-wrap: wrap;
    }
 
+   .toolbar-actions {
+       display: flex;
+       align-items: center;
+       gap: 10px;
+   }
+
+   .toolbar-actions > .help-icon { font-size: 12px; cursor: pointer; }
+
    .filters-left {
        display: flex;
        align-items: center;
@@ -1562,6 +1580,15 @@
        display: flex;
        align-items: center;
        gap: 4px;
+   }
+
+   .sidebar-backup-quick {
+       margin-left: auto;
+   }
+
+   .sidebar-backup-quick .history-btn svg {
+       width: 15px;
+       height: 15px;
    }
 
    .sidebar-collapse-btn {
@@ -2037,6 +2064,11 @@
        top: 50%;
        bottom: auto;
        transform: translateY(-50%);
+   }
+
+   .sidebar-backup-quick .app-tooltip {
+       left: auto;
+       right: calc(100% + 10px);
    }
 
    .priority-inline {
@@ -2767,6 +2799,16 @@
        border: none !important;
        border-radius: 0 !important;
        padding-left: 8px;
+   }
+
+   .amount-input-wrap input:focus {
+       outline: none;
+       box-shadow: none;
+   }
+
+   .amount-input-wrap:focus-within {
+       border-color: var(--pink);
+       box-shadow: 0 0 0 4px var(--pink-soft);
    }
 
    .currency-symbol-overlay {
@@ -3587,6 +3629,29 @@
        line-height: 1;
    }
 
+   .help-icon-tooltip {
+       position: fixed;
+       background: var(--card);
+       color: var(--text-h2);
+       padding: 6px 10px;
+       border-radius: 10px;
+       border: 1px solid var(--line);
+       box-shadow: var(--shadow-soft);
+       font-size: 11px;
+       font-weight: 600;
+       white-space: nowrap;
+       opacity: 0;
+       visibility: hidden;
+       pointer-events: none;
+       transition: opacity 0.15s ease;
+       z-index: 9999;
+   }
+
+   .help-icon-tooltip.active {
+       opacity: 1;
+       visibility: visible;
+   }
+
 
    .category-row {
        display: grid;
@@ -3881,6 +3946,13 @@
 
    .modal-box label {
        margin-top: 0px;
+   }
+
+   .modal-actions {
+       display: flex;
+       gap: 10px;
+       justify-content: center;
+       margin-top: 20px;
    }
 
    #addBillModal .modal-box {
@@ -4517,6 +4589,11 @@
            height: 28px;
        }
 
+       .sidebar-top-bar .sidebar-backup-quick .history-btn svg {
+           width: 20px;
+           height: 20px;
+       }
+
        .sidebar-top-bar .history-btn {
            padding: 8px;
        }
@@ -4698,6 +4775,9 @@
            margin-bottom: 16px;
            flex-direction: row;
        }
+
+       #filtersMobileBar > .help-icon { margin-left: auto; margin-right: 10px; font-size: 12px; }
+       #calFiltersMobileBar > .help-icon { margin-left: auto; margin-right: 10px; font-size: 12px; }
 
        #calAddBillBtnMobile,
        #addBillBtnMobile {
@@ -5488,3 +5568,57 @@
            grid-template-columns: 1fr;
        }
    }
+
+.acc-link-btn {
+    background: none;
+    border: none;
+    color: var(--pink);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.acc-link-btn:hover { opacity: 0.8; }
+
+.settings-app-divider {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 24px 0 4px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.settings-app-divider > .help-icon { font-size: 12px; }
+
+.menu-vis-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+
+.menu-vis-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.menu-vis-row:last-child { border-bottom: none; }
+
+.menu-vis-label { font-size: 14px; font-weight: 600; color: var(--text-h2); }
+
+.menu-vis-right { display: flex; align-items: center; gap: 10px; }
+
+.menu-vis-status { font-size: 12px; color: var(--muted); }
